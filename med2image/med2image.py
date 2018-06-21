@@ -24,13 +24,15 @@ import nibabel as nib
 import dicom
 import pylab
 import matplotlib.cm as cm
-
+from matplotlib.colors import LinearSegmentedColormap
 # Project specific imports
 from . import error
 from . import message as msg
 from . import systemMisc as misc
+from .color_map import global_color_dict
 
 
+import numpy
 class med2image(object):
     """
         med2image accepts as input certain medical image formatted data
@@ -332,8 +334,26 @@ class med2image(object):
             else:
                 raise ValueError('dcm output format only available for DICOM files')
         else:
-            pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r)
+#-
+            #print (cm.Greys_r)
+            #print (mycm)
+            #print (self._Mnp_2Dslice)
+            #print (astr_outputFile)
+            #print (numpy.unique(self._Mnp_2Dslice))
+            slice_color_dict = {}
+            slice_keys = numpy.unique(self._Mnp_2Dslice)
+            for key in slice_keys:
+                if key in global_color_dict:
+                    slice_color_dict[key] = global_color_dict[key]
 
+            mycolors = list(slice_color_dict.values())
+            #print (slice_keys)
+            #print (list(slice_color_dict.keys()))
+            #print (list(slice_color_dict.values()))            
+            mycm = LinearSegmentedColormap.from_list('custom_color_map', mycolors ,N=len(mycolors))
+            #pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r)
+            #pylab.imsave('/home/luciano/nifti_data/MYCM-output.png', self._Mnp_2Dslice, format=fformat, cmap = mycm)
+            pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = mycm)
     def invert_slice_intensities(self):
         '''
         Inverts intensities of a single slice.

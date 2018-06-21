@@ -1,0 +1,13 @@
+#criar virtual env
+python3 -m venv ./venv
+
+#ativar virtual env
+cd ./venv/
+source bin/activate
+
+#instalar as dependências de maneira rápida
+pip3 install med2image
+
+# clonar o repositorio e acessar o executavel
+cd /home/luciano/med2image/bin/
+./med2image -i /home/luciano/nifti_data/Lula_Cx5_Seg_178_56_2739_ID_69.nii -d /home/luciano/nifti_data/ -t png -r
