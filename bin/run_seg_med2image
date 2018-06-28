@@ -1,0 +1,7 @@
+#!/bin/sh
+input_file=$1
+out_dir=$2
+echo $input_file 
+echo $out_dir
+. ~/med2image_venv/bin/activate 
+./med2image/bin/med2image -i $input_file -d $out_dir -t png --reslice

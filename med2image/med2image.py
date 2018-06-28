@@ -345,7 +345,8 @@ class med2image(object):
             for key in slice_keys:
                 if key in global_color_dict:
                     slice_color_dict[key] = global_color_dict[key]
-
+            if len(slice_keys) <= 1:
+                slice_color_dict = global_color_dict.copy()
             mycolors = list(slice_color_dict.values())
             #print (slice_keys)
             #print (list(slice_color_dict.keys()))

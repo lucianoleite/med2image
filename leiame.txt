@@ -1,3 +1,7 @@
+#requirements
+#sudo apt-get install python3-pip
+#sudo apt-get install python3-venv
+
 #criar virtual env
 python3 -m venv ./venv
 
@@ -6,6 +10,7 @@ cd ./venv/
 source bin/activate
 
 #instalar as dependências de maneira rápida
+#pip install --upgrade pip
 pip3 install med2image
 
 # clonar o repositorio e acessar o executavel
