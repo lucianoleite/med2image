@@ -123,8 +123,7 @@ class med2image(object):
         return astr
 
     def __init__(self, **kwargs):
-        self.slice_number               = -1
-        self.mycm                       = None
+
         #
         # Object desc block
         #
@@ -293,38 +292,8 @@ class med2image(object):
         dim_ix = {'x':0, 'y':1, 'z':2}
         if indexStart == 0 and indexStop == -1:
             indexStop = dims[dim_ix[str_dim]]
-        
-        self.mycolors = global_color_dict.values()
 
         for i in range(indexStart, indexStop):
-            self.slice_number = i
-            if str_dim == 'x':
-                self._Mnp_2Dslice = self._Vnp_3DVol[i, :, :]
-            elif str_dim == 'y':
-                self._Mnp_2Dslice = self._Vnp_3DVol[:, i, :]
-            else:
-                self._Mnp_2Dslice = self._Vnp_3DVol[:, :, i]
-
-            slice_keys = numpy.unique(self._Mnp_2Dslice)
-            
-            for key in slice_keys:
-                if not key in self.d:
-                    self.d[key] = []
-                self.d[key].append(self.slice_number)
-
-        color_dict = {}
-        for k,v in self.d.items():
-            if k > 6 :
-                break 
-            print ("pore: ", k,  "len slices: ", len(v), " slices: ", v)
-
-        global_colors = list(global_color_dict.values())
-        self.mycolors = [global_colors[0]] + list( global_colors[1:])*int(len(self.d.items())/len(global_colors[1:]))
-        self.mycm = LinearSegmentedColormap.from_list('custom_color_map', self.mycolors ,N=len(self.mycolors))
-
-        for i in range(indexStart, indexStop):
-
-            self.slice_number = i
             if str_dim == 'x':
                 self._Mnp_2Dslice = self._Vnp_3DVol[i, :, :]
             elif str_dim == 'y':
@@ -335,14 +304,6 @@ class med2image(object):
             str_outputFile = self.get_output_file_name(index=i, subDir=str_subDir)
             if str_outputFile.endswith('dcm'):
                 self._dcm = self._dcmList[i]
-            
-            slice_colors = []
-            slice_keys = numpy.unique(self._Mnp_2Dslice)
-            for key in slice_keys:
-                slice_colors += [self.mycolors[key]]
-            slice_colors = self.mycolors[: slice_keys.max()+1]
-            self.mycm = LinearSegmentedColormap.from_list('custom_color_map', slice_colors ,N=len(slice_colors))
-
             self.slice_save(str_outputFile)
 
     def process_slice(self, b_rot90=None):
@@ -354,7 +315,6 @@ class med2image(object):
         if self.func == 'invertIntensities':
             self.invert_slice_intensities()
 
-    d = {}
     def slice_save(self, astr_outputFile):
         '''
         Saves a single slice.
@@ -379,24 +339,22 @@ class med2image(object):
             #print (mycm)
             #print (self._Mnp_2Dslice)
             #print (astr_outputFile)
-            #print (self._str_sliceToConvert )
             #print (numpy.unique(self._Mnp_2Dslice))
-
-            #len(d)
-            # for key in slice_keys:
-            #     if key in global_color_dict:
-            #         slice_color_dict[key] = global_color_dict[key]
-            # if len(slice_keys) <= 1:
-            #     print ('a')
-            #     slice_color_dict = global_color_dict.copy()
-            # print("self.d len ", len(self.d))
-            # slice_color_dict = global_color_dict.copy()
-            # mycolors = list(slice_color_dict.values())*50
-            #print ("len slice_keys =", len(slice_keys))          
-            
+            slice_color_dict = {}
+            slice_keys = numpy.unique(self._Mnp_2Dslice)
+            for key in slice_keys:
+                if key in global_color_dict:
+                    slice_color_dict[key] = global_color_dict[key]
+            if len(slice_keys) <= 1:
+                slice_color_dict = global_color_dict.copy()
+            mycolors = list(slice_color_dict.values())
+            #print (slice_keys)
+            #print (list(slice_color_dict.keys()))
+            #print (list(slice_color_dict.values()))            
+            mycm = LinearSegmentedColormap.from_list('custom_color_map', mycolors ,N=len(mycolors))
             #pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r)
             #pylab.imsave('/home/luciano/nifti_data/MYCM-output.png', self._Mnp_2Dslice, format=fformat, cmap = mycm)
-            pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
+            pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = mycm)
     def invert_slice_intensities(self):
         '''
         Inverts intensities of a single slice.
@@ -537,7 +495,6 @@ class med2image_nii(med2image):
     '''
     Sub class that handles NIfTI data.
     '''
-    print("=========================rodando med2image")
 
     def __init__(self, **kwargs):
         med2image.__init__(self, **kwargs)
@@ -554,7 +511,7 @@ class med2image_nii(med2image):
         '''
         Runs the NIfTI conversion based on internal state.
         '''
-
+        print("=========================rodando pore_label")
         self._log('About to perform NifTI to %s conversion...\n' %
                   self._str_outputFileType)
 
