@@ -21,7 +21,7 @@ import re
 
 # System dependency imports
 import nibabel as nib
-import dicom
+import pydicom
 import pylab
 import matplotlib.cm as cm
 from matplotlib.colors import LinearSegmentedColormap

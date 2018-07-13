@@ -59,6 +59,23 @@ global_color_dict = {
 }
 
 #mycolors = tuple(reversed(mycolors))
+
+# COLOR MAP w/ Minerals
+global_color_dict = {
+    0 : (0,0,0,0),
+    1 : (0.231, 0.231, 0.969,1), # azul medio
+    2 : (0, 0.836, 0.165,1), # verdinho
+    3 : (0.95, 0.85, 0.094,1), #amarelinho
+    4 : (0.868, 0.449, 0.307,1), # laranja
+    5 : (0.16, 0.8, 0.8,1), #  azul claro?
+    6 : (0.517, 0.148, 0.667, 1), #roxo
+    7 : (0.687, 0.8, 0.528, 1), #verde agua 
+    8 : (0.667, 0.468, 0.468, 1), # rosa CHA
+    9 : (0.863, 0.094, 0.094, 1), #vermelho
+    
+}
+
+# COLOR MAP w/ phases
 global_color_dict = {
     0 : (0,0,0,0),
     1 : (0.168841, 0.168841, 0.972549,1), # azul medio
@@ -70,3 +87,4 @@ global_color_dict = {
     7 : (0.862745, 0.0941176, 0.0941176,1), #vermelho
     8 : (1, 0, 1, 1), #pink
 }
+
