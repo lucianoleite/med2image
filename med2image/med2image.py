@@ -295,6 +295,7 @@ class med2image(object):
             indexStop = dims[dim_ix[str_dim]]
         
         self.mycolors = global_color_dict.values()
+        # self.mycolors = getFileColor()
 
         for i in range(indexStart, indexStop):
             self.slice_number = i

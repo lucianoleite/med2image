@@ -58,7 +58,31 @@ global_color_dict = {
     8 : (1, 0, 1, 1), #pink
 }
 
+import os
+
 #mycolors = tuple(reversed(mycolors))
+global_color_dict = {}
+def createColorDict(file):
+    f = open(file, 'r')
+    listColors = []
+    for line in f:
+        words = line.replace(";"," ")
+        for word in words.split(" "):
+            if "(" in word:  
+                listColors.append(word)
+    counter=0
+    for item in listColors:
+        global_color_dict[counter] = item
+        counter += 1
+    return global_color_dict
+
+def getFileColor():
+    for file in os.listdir("../med2image"):
+        if file.endswith(".txt"):
+            createColorDict(file)
+getFileColor()
+print(global_color_dict)
+
 global_color_dict = {
     0 : (0,0,0,0),
     1 : (0.168841, 0.168841, 0.972549,1), # azul medio
