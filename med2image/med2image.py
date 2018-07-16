@@ -30,9 +30,10 @@ from . import error
 from . import message as msg
 from . import systemMisc as misc
 from .color_map import global_color_dict
-
-
+from math import ceil
+import math
 import numpy
+import collections
 class med2image(object):
     """
         med2image accepts as input certain medical image formatted data
@@ -297,14 +298,9 @@ class med2image(object):
         self.mycolors = global_color_dict.values()
         # self.mycolors = getFileColor()
 
-        for i in range(indexStart, indexStop):
+        for i in range(0, dims[dim_ix['z']]):
             self.slice_number = i
-            if str_dim == 'x':
-                self._Mnp_2Dslice = self._Vnp_3DVol[i, :, :]
-            elif str_dim == 'y':
-                self._Mnp_2Dslice = self._Vnp_3DVol[:, i, :]
-            else:
-                self._Mnp_2Dslice = self._Vnp_3DVol[:, :, i]
+            self._Mnp_2Dslice = self._Vnp_3DVol[:, :, i]
 
             slice_keys = numpy.unique(self._Mnp_2Dslice)
             
@@ -317,13 +313,25 @@ class med2image(object):
         for k,v in self.d.items():
             if k > 6 :
                 break 
-            print ("pore: ", k,  "len slices: ", len(v), " slices: ", v)
+            #print ("pore: ", k,  "len slices: ", len(v), " slices: ", v)
 
         global_colors = list(global_color_dict.values())
-        self.mycolors = [global_colors[0]] + list( global_colors[1:])*int(len(self.d.items())/len(global_colors[1:]))
+        transparency, global_colors = global_colors[:1], global_colors[1:]
+        num_colors =  len(global_colors)
+        num_phases = len(self.d.items())
+
+        self.mycolors = transparency + list( global_colors * math.ceil( float(num_phases)/num_colors))[:num_phases]
+
         self.mycm = LinearSegmentedColormap.from_list('custom_color_map', self.mycolors ,N=len(self.mycolors))
+        '''
+        print ("The original colormap has len =  ", num_colors)
+        print ("The original colormap is =  ", transparency, global_colors)
+        print ("The # of phases in the input =   ", num_phases)
+        print ("The extended color map has len = ", len(self.mycolors))
+        '''
 
         for i in range(indexStart, indexStop):
+        #for i in range(0, 20):
 
             self.slice_number = i
             if str_dim == 'x':
@@ -339,9 +347,16 @@ class med2image(object):
             
             slice_colors = []
             slice_keys = numpy.unique(self._Mnp_2Dslice)
-            for key in slice_keys:
-                slice_colors += [self.mycolors[key]]
-            slice_colors = self.mycolors[: slice_keys.max()+1]
+            slice_keys = numpy.sort(slice_keys) 
+            pore_index = 0
+            for key in self.d.keys():
+                
+                if key in slice_keys:
+                    slice_colors += [self.mycolors[pore_index]]
+                    last_pore_index = pore_index
+                pore_index+=1
+  
+            slice_colors = self.mycolors[:last_pore_index+1]
             self.mycm = LinearSegmentedColormap.from_list('custom_color_map', slice_colors ,N=len(slice_colors))
 
             self.slice_save(str_outputFile)
@@ -355,7 +370,7 @@ class med2image(object):
         if self.func == 'invertIntensities':
             self.invert_slice_intensities()
 
-    d = {}
+    d = collections.OrderedDict()
     def slice_save(self, astr_outputFile):
         '''
         Saves a single slice.
