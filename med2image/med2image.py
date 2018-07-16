@@ -296,7 +296,7 @@ class med2image(object):
             indexStop = dims[dim_ix[str_dim]]
         
         self.mycolors = global_color_dict.values()
-
+        #for i in range(0, 11):
         for i in range(0, dims[dim_ix['z']]):
             self.slice_number = i
             self._Mnp_2Dslice = self._Vnp_3DVol[:, :, i]
@@ -322,12 +322,12 @@ class med2image(object):
         self.mycolors = transparency + list( global_colors * math.ceil( float(num_phases)/num_colors))[:num_phases]
 
         self.mycm = LinearSegmentedColormap.from_list('custom_color_map', self.mycolors ,N=len(self.mycolors))
-        '''
+        
         print ("The original colormap has len =  ", num_colors)
         print ("The original colormap is =  ", transparency, global_colors)
         print ("The # of phases in the input =   ", num_phases)
         print ("The extended color map has len = ", len(self.mycolors))
-        '''
+        
 
         for i in range(indexStart, indexStop):
         #for i in range(0, 20):
@@ -351,11 +351,24 @@ class med2image(object):
             for key in self.d.keys():
                 
                 if key in slice_keys:
+                    #print ("key  = ", key, self.mycolors[pore_index])
                     slice_colors += [self.mycolors[pore_index]]
                     last_pore_index = pore_index
                 pore_index+=1
-  
+
+            
             slice_colors = self.mycolors[:last_pore_index+1]
+
+            if last_pore_index == 0:
+                slice_colors = self.mycolors
+                print ("+++ Warning Transparent Slice. Using the whole color list")
+
+
+            print ("\n\n\npore_index  = ", last_pore_index)
+            print ("The # of phases in the slice =   ", len(slice_keys))
+            print ("The extended color map has len = ", len(slice_colors))
+            print ("+The slice color map is = ", slice_colors)
+            print ("+The phases in the slice are   ", slice_keys)
             self.mycm = LinearSegmentedColormap.from_list('custom_color_map', slice_colors ,N=len(slice_colors))
 
             self.slice_save(str_outputFile)
