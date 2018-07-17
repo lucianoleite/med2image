@@ -324,7 +324,7 @@ class med2image(object):
         self.mycm = LinearSegmentedColormap.from_list('custom_color_map', self.mycolors ,N=len(self.mycolors))
         
         print ("The original colormap has len =  ", num_colors)
-        print ("The original colormap is =  ", transparency, global_colors)
+        #print ("The original colormap is =  ", transparency, global_colors)
         print ("The # of phases in the input =   ", num_phases)
         print ("The extended color map has len = ", len(self.mycolors))
         
@@ -364,11 +364,11 @@ class med2image(object):
                 print ("+++ Warning Transparent Slice. Using the whole color list")
 
 
-            print ("\n\n\npore_index  = ", last_pore_index)
+            '''print ("\n\n\npore_index  = ", last_pore_index)
             print ("The # of phases in the slice =   ", len(slice_keys))
             print ("The extended color map has len = ", len(slice_colors))
             print ("+The slice color map is = ", slice_colors)
-            print ("+The phases in the slice are   ", slice_keys)
+            print ("+The phases in the slice are   ", slice_keys)'''
             self.mycm = LinearSegmentedColormap.from_list('custom_color_map', slice_colors ,N=len(slice_colors))
 
             self.slice_save(str_outputFile)
