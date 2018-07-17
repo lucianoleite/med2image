@@ -29,7 +29,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from . import error
 from . import message as msg
 from . import systemMisc as misc
-from .color_map import global_color_dict
+from .color_map import *
 from math import ceil
 import math
 import numpy
@@ -294,7 +294,9 @@ class med2image(object):
         dim_ix = {'x':0, 'y':1, 'z':2}
         if indexStart == 0 and indexStop == -1:
             indexStop = dims[dim_ix[str_dim]]
-        
+
+        global_color_dict = getFileColor()
+        # print('===============global_color_dict',global_color_dict)
         self.mycolors = global_color_dict.values()
         # self.mycolors = getFileColor()
 
@@ -314,7 +316,7 @@ class med2image(object):
             if k > 6 :
                 break 
             #print ("pore: ", k,  "len slices: ", len(v), " slices: ", v)
-
+       
         global_colors = list(global_color_dict.values())
         transparency, global_colors = global_colors[:1], global_colors[1:]
         num_colors =  len(global_colors)
