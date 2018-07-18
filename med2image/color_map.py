@@ -60,6 +60,7 @@ mycolors = (
 
 import os
 from ast import literal_eval
+import re
 
 #mycolors = tuple(reversed(mycolors))
 global_color_dict = {}
@@ -68,10 +69,14 @@ def createColorDict(file):
     f = open(file, 'r')
     listColors = []
     for line in f:
-        for word in line.split(" "):
+        # separa palavras apenas fora do parenteses
+        words = re.findall('\[[^\]]*\]|\([^\)]*\)|\"[^\"]*\"|\S+', line)
+        for word in words:
             if "(" in word:
-                word = literal_eval(word)
-                listColors.append(word)
+                # transforma texto em tupla
+                newWord = literal_eval(word)
+                # adiciona a nova palavra na lista
+                listColors.append(newWord)
 
     # definindo o dicionario de cores
     counter=0
