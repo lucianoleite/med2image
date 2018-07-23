@@ -295,8 +295,8 @@ class med2image(object):
         if indexStart == 0 and indexStop == -1:
             indexStop = dims[dim_ix[str_dim]]
 
-        global_color_dict = getFileColor()
-        # print('===============global_color_dict',global_color_dict)
+        # global_color_dict = getFileColor()
+        print('===============global_color_dict',global_color_dict)
         self.mycolors = global_color_dict.values()
         # self.mycolors = getFileColor()
 

@@ -8,5 +8,5 @@ echo $out_dir
 . ~/med2image_venv/bin/activate 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-$DIR/med2image -i $input_file -d $out_dir -t png -r
-
+# $DIR/med2image -i $input_file -d $out_dir -t png -r 
+$DIR/med2image -i $input_file -d $out_dir -t png -r -c med2image/teste.txt

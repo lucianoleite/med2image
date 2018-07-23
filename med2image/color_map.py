@@ -86,15 +86,15 @@ def createColorDict(file):
     # print global_color_dict
     return global_color_dict
 
-def getFileColor():
-    currentPath = os.path.abspath('')
-    subFolder = 'med2image'
-    for file in os.listdir("../med2image/med2image"):
-        if file.endswith(".txt"):
-            # print(file)
-            fullPath = os.path.join(currentPath,subFolder,file)
-            # print("createColorDict(fullPath)",createColorDict(fullPath))
-            return createColorDict(fullPath)
+# def getFileColor():
+#     currentPath = os.path.abspath('')
+#     subFolder = 'med2image'
+#     for file in os.listdir("../med2image/med2image"):
+#         if file.endswith(".txt"):
+#             # print(file)
+#             fullPath = os.path.join(currentPath,subFolder,file)
+#             # print("createColorDict(fullPath)",createColorDict(fullPath))
+#             return createColorDict(fullPath)
 
 # global_color_dict = {
 #     0 : (0,0,0,0),
