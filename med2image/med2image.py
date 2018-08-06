@@ -373,6 +373,19 @@ class med2image(object):
 
             self.slice_save(str_outputFile)
 
+        # counting number of files in current dim path and storing in total.txt
+        try:
+            fullPathDim = os.path.dirname(str_outputFile)
+            totalFilePath = os.path.join(fullPathDim,'total.txt')
+            if os.path.isfile(totalFilePath):
+                os.remove(totalFilePath)
+            numberOfFiles = len([name for name in os.listdir(fullPathDim) if os.path.isfile(os.path.join(fullPathDim, name))])
+            f = open(totalFilePath, 'w')
+            f.write(str(numberOfFiles))
+            f.close
+        except Exception as ex:
+            print("[dim_save] There was an error generating total.txt ",ex)
+
     def process_slice(self, b_rot90=None):
         '''
         Processes a single slice.
