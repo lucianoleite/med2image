@@ -63,9 +63,9 @@ from ast import literal_eval
 import re
 
 #mycolors = tuple(reversed(mycolors))
-global_color_dict = {}
 def createColorDict(file):
     # leitura do arquivo
+    global_color_dict = {}
     f = open(file, 'r')
     listColors = []
     for line in f:

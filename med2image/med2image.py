@@ -29,7 +29,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from . import error
 from . import message as msg
 from . import systemMisc as misc
-from .color_map import *
+from .color_map import createColorDict
 from math import ceil
 import math
 import numpy
@@ -80,6 +80,15 @@ class med2image(object):
             'error': 'the DICOM file does not seem to contain a SeriesDescription tag.',
             'exitCode': 30}
     }
+
+    # Custom constants
+    NON_SEGMENTED = 'Projecao Tomografica'
+    SEG_PHASES = 'Projecao Segmentada Fases'
+    SEG_PORE = 'Projecao Segmentada Poro'
+    SEG_PORE_LABELED = 'Projecao Segmentada Pore Labeled'
+    SEG_MINERALS = 'Projecao Segmentada Minerais (nao implementada)'
+    COLORED_TYPES = [SEG_PHASES, SEG_PORE_LABELED, SEG_MINERALS]
+    NON_COLORED_TYPES = [NON_SEGMENTED, SEG_PORE]
         
     def log(self, *args):
         '''
@@ -174,6 +183,12 @@ class med2image(object):
         self._b_reslice                 = False
         self.func                       = None #transformation function
 
+        #Custom attributes for colored segmentations
+        self.segmentationType           = None # to check if is colored 
+        self.colorTxt                   = None # to customize colormap
+
+
+        # self.segmentationType       = value
         for key, value in kwargs.items():
             if key == "inputFile":          self._str_inputFile         = value
             if key == "outputDir":          self._str_outputDir         = value
@@ -183,6 +198,8 @@ class med2image(object):
             if key == "frameToConvert":     self._str_frameToConvert    = value
             if key == "showSlices":         self._b_showSlices          = value
             if key == 'reslice':            self._b_reslice             = value
+            if key == 'segmentationType':   self.segmentationType       = value.replace('_',' ') # recebe Projecao_Segmentada_Fases mas testa Projecao Segmentada Fases
+            if key == 'colorTxt':           self.colorTxt               = value # path/to/colormap.txt
 
         if self._str_frameToConvert.lower() == 'm':
             self._b_convertMiddleFrame = True
@@ -295,42 +312,42 @@ class med2image(object):
         if indexStart == 0 and indexStop == -1:
             indexStop = dims[dim_ix[str_dim]]
 
-        # global_color_dict = getFileColor()
-        print('===============global_color_dict',global_color_dict)
-        self.mycolors = global_color_dict.values()
-        # self.mycolors = getFileColor()
+        if self.segmentationType in self.COLORED_TYPES:
+            global_color_dict = createColorDict(self.colorTxt)
+            self.mycolors = global_color_dict.values()
+            # self.mycolors = getFileColor()
 
-        for i in range(0, dims[dim_ix['z']]):
-            self.slice_number = i
-            self._Mnp_2Dslice = self._Vnp_3DVol[:, :, i]
+            for i in range(0, dims[dim_ix['z']]):
+                self.slice_number = i
+                self._Mnp_2Dslice = self._Vnp_3DVol[:, :, i]
 
-            slice_keys = numpy.unique(self._Mnp_2Dslice)
-            
-            for key in slice_keys:
-                if not key in self.d:
-                    self.d[key] = []
-                self.d[key].append(self.slice_number)
+                slice_keys = numpy.unique(self._Mnp_2Dslice)
+                
+                for key in slice_keys:
+                    if not key in self.d:
+                        self.d[key] = []
+                    self.d[key].append(self.slice_number)
 
-        color_dict = {}
-        for k,v in self.d.items():
-            if k > 6 :
-                break 
-            #print ("pore: ", k,  "len slices: ", len(v), " slices: ", v)
-       
-        global_colors = list(global_color_dict.values())
-        transparency, global_colors = global_colors[:1], global_colors[1:]
-        num_colors =  len(global_colors)
-        num_phases = len(self.d.items())
+            color_dict = {}
+            for k,v in self.d.items():
+                if k > 6 :
+                    break 
+                #print ("pore: ", k,  "len slices: ", len(v), " slices: ", v)
+        
+            global_colors = list(global_color_dict.values())
+            transparency, global_colors = global_colors[:1], global_colors[1:]
+            num_colors =  len(global_colors)
+            num_phases = len(self.d.items())
 
-        self.mycolors = transparency + list( global_colors * math.ceil( float(num_phases)/num_colors))[:num_phases]
+            self.mycolors = transparency + list( global_colors * math.ceil( float(num_phases)/num_colors))[:num_phases]
 
-        self.mycm = LinearSegmentedColormap.from_list('custom_color_map', self.mycolors ,N=len(self.mycolors))
-        '''
-        print ("The original colormap has len =  ", num_colors)
-        print ("The original colormap is =  ", transparency, global_colors)
-        print ("The # of phases in the input =   ", num_phases)
-        print ("The extended color map has len = ", len(self.mycolors))
-        '''
+            self.mycm = LinearSegmentedColormap.from_list('custom_color_map', self.mycolors ,N=len(self.mycolors))
+            '''
+            print ("The original colormap has len =  ", num_colors)
+            print ("The original colormap is =  ", transparency, global_colors)
+            print ("The # of phases in the input =   ", num_phases)
+            print ("The extended color map has len = ", len(self.mycolors))
+            '''
 
         for i in range(indexStart, indexStop):
         #for i in range(0, 20):
@@ -346,22 +363,47 @@ class med2image(object):
             str_outputFile = self.get_output_file_name(index=i, subDir=str_subDir)
             if str_outputFile.endswith('dcm'):
                 self._dcm = self._dcmList[i]
-            
-            slice_colors = []
-            slice_keys = numpy.unique(self._Mnp_2Dslice)
-            slice_keys = numpy.sort(slice_keys) 
-            pore_index = 0
-            for key in self.d.keys():
-                
-                if key in slice_keys:
-                    slice_colors += [self.mycolors[pore_index]]
-                    last_pore_index = pore_index
-                pore_index+=1
-  
-            slice_colors = self.mycolors[:last_pore_index+1]
-            self.mycm = LinearSegmentedColormap.from_list('custom_color_map', slice_colors ,N=len(slice_colors))
+
+                if self.segmentationType in self.COLORED_TYPES:
+                    slice_colors = []
+                    slice_keys = numpy.unique(self._Mnp_2Dslice)
+                    slice_keys = numpy.sort(slice_keys) 
+                    pore_index = 0
+                    for key in self.d.keys():
+                        
+                        if key in slice_keys:
+                            slice_colors += [self.mycolors[pore_index]]
+                            last_pore_index = pore_index
+                        pore_index+=1
+        
+                    slice_colors = self.mycolors[:last_pore_index+1]
+
+                    if last_pore_index == 0:
+                        slice_colors = self.mycolors
+                        print ("+++ Warning Transparent Slice. Using the whole color list")
+
+
+                    '''print ("\n\n\npore_index  = ", last_pore_index)
+                    print ("The # of phases in the slice =   ", len(slice_keys))
+                    print ("The extended color map has len = ", len(slice_colors))
+                    print ("+The slice color map is = ", slice_colors)
+                    print ("+The phases in the slice are   ", slice_keys)'''
+                    self.mycm = LinearSegmentedColormap.from_list('custom_color_map', slice_colors ,N=len(slice_colors))
 
             self.slice_save(str_outputFile)
+        
+        # counting number of files in current dim path and storing in total.txt
+        try:
+            fullPathDim = os.path.dirname(str_outputFile)
+            totalFilePath = os.path.join(fullPathDim,'total.txt')
+            if os.path.isfile(totalFilePath):
+                os.remove(totalFilePath)
+            numberOfFiles = len([name for name in os.listdir(fullPathDim) if os.path.isfile(os.path.join(fullPathDim, name))])
+            f = open(totalFilePath, 'w')
+            f.write(str(numberOfFiles))
+            f.close
+        except Exception as ex:
+            print("[dim_save] There was an error generating total.txt ",ex)
 
     def process_slice(self, b_rot90=None):
         '''
@@ -414,7 +456,11 @@ class med2image(object):
             
             #pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r)
             #pylab.imsave('/home/luciano/nifti_data/MYCM-output.png', self._Mnp_2Dslice, format=fformat, cmap = mycm)
-            pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
+            if self.segmentationType in self.COLORED_TYPES:
+                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
+            else:
+                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r)
+
     def invert_slice_intensities(self):
         '''
         Inverts intensities of a single slice.
@@ -555,7 +601,6 @@ class med2image_nii(med2image):
     '''
     Sub class that handles NIfTI data.
     '''
-    print("=========================rodando med2image")
 
     def __init__(self, **kwargs):
         med2image.__init__(self, **kwargs)

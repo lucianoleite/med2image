@@ -86,19 +86,14 @@ parser.add_argument('-v', '--version',
                     dest    = 'b_version',
                     action  = 'store_true',
                     default = False)
-
-def create_colors():
-    class customAction(argparse.Action):
-        def __call__(self, parser, args, values, option_string=None):
-            createColorDict(values)
-    return customAction
-            
-
 parser.add_argument('-c', '--colorTxt',
                     help = 'text file set colors',
-                    dest = 'outputFileType',
-                    action = create_colors(),
-                    default = '')
+                    dest = 'colorTxt',
+                    default = os.path.join(os.path.abspath('med2image'),'default_colormap.txt'))
+parser.add_argument('--type',
+                    help = 'segmentation type ',
+                    dest = 'segmentationType',
+                    default = 'Projecao Segmentada Pore Labeled')
 
 def synopsis(ab_shortOnly=False):
     scriptName = os.path.basename(sys.argv[0])
@@ -120,6 +115,8 @@ def synopsis(ab_shortOnly=False):
                     [--func {invertIntensities}]            \\
                     [--reslice]                            \\
                     [-x|--man]				   \\
+                    [--type <segmentationType>]				    \\
+                    [-c|--colorTxt	<path/to/colormap.txt>]	    \\
 		    [-y|--synopsis]
 
     BRIEF EXAMPLE
@@ -288,7 +285,9 @@ if b_niftiExt:
         sliceToConvert=args.sliceToConvert,
         frameToConvert=args.frameToConvert,
         showSlices=args.showSlices,
-        reslice=args.reslice
+        reslice=args.reslice,
+        segmentationType=args.segmentationType,
+        colorTxt=args.colorTxt,
     )
 
     print('sliceToConvert:', args.sliceToConvert)
