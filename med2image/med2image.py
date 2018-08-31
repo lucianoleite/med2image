@@ -86,7 +86,7 @@ class med2image(object):
     SEG_PHASES = 'Projecao Segmentada Fases'
     SEG_PORE = 'Projecao Segmentada Poro'
     SEG_PORE_LABELED = 'Projecao Segmentada Pore Labeled'
-    SEG_MINERALS = 'Projecao Segmentada Minerais (nao implementada)'
+    SEG_MINERALS = 'Projecao Segmentada Minerais' #nao implementada
     COLORED_TYPES = [SEG_PHASES, SEG_PORE_LABELED, SEG_MINERALS]
     NON_COLORED_TYPES = [NON_SEGMENTED, SEG_PORE]
         
@@ -365,30 +365,47 @@ class med2image(object):
                 self._dcm = self._dcmList[i]
 
                 if self.segmentationType in self.COLORED_TYPES:
-                    slice_colors = []
-                    slice_keys = numpy.unique(self._Mnp_2Dslice)
-                    slice_keys = numpy.sort(slice_keys) 
-                    pore_index = 0
-                    for key in self.d.keys():
-                        
-                        if key in slice_keys:
-                            slice_colors += [self.mycolors[pore_index]]
-                            last_pore_index = pore_index
-                        pore_index+=1
-        
-                    slice_colors = self.mycolors[:last_pore_index+1]
 
-                    if last_pore_index == 0:
-                        slice_colors = self.mycolors
-                        print ("+++ Warning Transparent Slice. Using the whole color list")
+                    if self.segmentationType == self.SEG_MINERALS:
+                        slice_color_dict = {}
+                        slice_keys = numpy.unique(self._Mnp_2Dslice)
+
+                        for key in slice_keys:
+                            if key in global_color_dict:
+                                slice_color_dict[key] = global_color_dict[key]
+
+                        if len(slice_keys) <= 1:
+                            slice_color_dict = global_color_dict.copy()
+                        mycolors = list(slice_color_dict.values())
+                        # print (slice_keys)
+                        # print (list(slice_color_dict.keys()))
+                        # print (list(slice_color_dict.values()))
+                        self.mycm = LinearSegmentedColormap.from_list('custom_color_map', mycolors, N=len(mycolors))
+                    else:
+                        slice_colors = []
+                        slice_keys = numpy.unique(self._Mnp_2Dslice)
+                        slice_keys = numpy.sort(slice_keys)
+                        pore_index = 0
+                        for key in self.d.keys():
+
+                            if key in slice_keys:
+                                slice_colors += [self.mycolors[pore_index]]
+                                last_pore_index = pore_index
+                            pore_index+=1
+
+                        slice_colors = self.mycolors[:last_pore_index+1]
+
+                        if last_pore_index == 0:
+                            slice_colors = self.mycolors
+                            print ("+++ Warning Transparent Slice. Using the whole color list")
 
 
-                    '''print ("\n\n\npore_index  = ", last_pore_index)
-                    print ("The # of phases in the slice =   ", len(slice_keys))
-                    print ("The extended color map has len = ", len(slice_colors))
-                    print ("+The slice color map is = ", slice_colors)
-                    print ("+The phases in the slice are   ", slice_keys)'''
-                    self.mycm = LinearSegmentedColormap.from_list('custom_color_map', slice_colors ,N=len(slice_colors))
+                        '''print ("\n\n\npore_index  = ", last_pore_index)
+                        print ("The # of phases in the slice =   ", len(slice_keys))
+                        print ("The extended color map has len = ", len(slice_colors))
+                        print ("+The slice color map is = ", slice_colors)
+                        print ("+The phases in the slice are   ", slice_keys)'''
+                        self.mycm = LinearSegmentedColormap.from_list('custom_color_map', slice_colors ,N=len(slice_colors))
 
             self.slice_save(str_outputFile)
         
@@ -441,7 +458,6 @@ class med2image(object):
             #print (astr_outputFile)
             #print (self._str_sliceToConvert )
             #print (numpy.unique(self._Mnp_2Dslice))
-
             #len(d)
             # for key in slice_keys:
             #     if key in global_color_dict:
