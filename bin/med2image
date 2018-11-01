@@ -89,7 +89,8 @@ parser.add_argument('-v', '--version',
 parser.add_argument('-c', '--colorTxt',
                     help = 'text file set colors',
                     dest = 'colorTxt',
-                    default = os.path.join(os.path.abspath('colormaps'),'default_colormap.txt'))
+                    default = os.path.join(os.path.dirname(os.getcwd()),'colormaps','default_colormap.txt')
+                    )
 parser.add_argument('--type',
                     help = 'segmentation type ',
                     dest = 'segmentationType',
