@@ -475,7 +475,42 @@ class med2image(object):
             if self.segmentationType in self.COLORED_TYPES:
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
             else:
-                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r)
+                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
+                print('np.amax(self._Mnp_2Dslice)',np.amax(self._Mnp_2Dslice))
+                print('np.amin(self._Mnp_2Dslice)',np.amin(self._Mnp_2Dslice))
+
+                #---------- trecho para transformar preto em azul ---------#
+                # obtendo cor de fundo
+                from PIL import Image
+                im = Image.open(astr_outputFile)
+                rgb_im = im.convert('RGB')
+                rgbTuple = rgb_im.getpixel((1, 1))
+                # rgbTuple = (123,123,1234)
+
+                # obtendo todos os rgb dos pixels
+                img = Image.open(astr_outputFile)
+                img = img.convert("RGBA")
+                datas = img.getdata()
+
+                newData = []
+                for r,g,b,a in datas:
+                    if r == rgbTuple[0] and g == rgbTuple[1] and b == rgbTuple[2]:
+                        # deixa o fundo transparente
+                        newData.append((255, 255, 255, 0))
+                    else:
+                        # deixa azul os tons que estejam entre minBlack e maxBlack
+                        maxBlack = (30,30,30,255)
+                        minBlack = (0,0,0,255)
+                        if (r < maxBlack[0] and r >= minBlack[0]) and \
+                                (g < maxBlack[1] and g >= minBlack[1]) and \
+                                (b < maxBlack[2] and b >= minBlack[2]):
+                            newData.append((0, 0, 255, 255))
+                        else:
+                            newData.append((r, g, b, a))
+
+                img.putdata(newData)
+                img.save(astr_outputFile, astr_outputFile.rsplit('.',1)[1]) #sobreescreve a imagem
+
 
     def invert_slice_intensities(self):
         '''
