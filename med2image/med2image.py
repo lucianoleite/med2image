@@ -472,6 +472,12 @@ class med2image(object):
             
             #pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r)
             #pylab.imsave('/home/luciano/nifti_data/MYCM-output.png', self._Mnp_2Dslice, format=fformat, cmap = mycm)
+
+            # def blue_pores(value, base_colormap=cm.Greys_r):
+                # if value < 60:
+                #     return (0, 0, 1, 1)
+                # return base_colormap
+
             if self.segmentationType in self.COLORED_TYPES:
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
             else:
@@ -493,13 +499,15 @@ class med2image(object):
                 datas = img.getdata()
 
                 newData = []
+                # maxBlack = tuple([255*x for x in cm.Greys_r(60)]) #lento!
+                # minBlack = cm.Greys_r(1)
                 for r,g,b,a in datas:
                     if r == rgbTuple[0] and g == rgbTuple[1] and b == rgbTuple[2]:
                         # deixa o fundo transparente
                         newData.append((255, 255, 255, 0))
                     else:
                         # deixa azul os tons que estejam entre minBlack e maxBlack
-                        maxBlack = (30,30,30,255)
+                        maxBlack = (40,40,40,255)
                         minBlack = (0,0,0,255)
                         if (r < maxBlack[0] and r >= minBlack[0]) and \
                                 (g < maxBlack[1] and g >= minBlack[1]) and \
