@@ -474,24 +474,52 @@ class med2image(object):
             #pylab.imsave('/home/luciano/nifti_data/MYCM-output.png', self._Mnp_2Dslice, format=fformat, cmap = mycm)
 
             # def blue_pores(value, base_colormap=cm.Greys_r):
-                # if value < 60:
-                #     return (0, 0, 1, 1)
-                # return base_colormap
+            #     if value < 60:
+            #         return (0, 0, 1, 1)
+            #     return base_colormap
+
+            # Altera o colormap cinza para ficar mais claro (colormap nao linear)
+            import matplotlib.pyplot as plt
+            from matplotlib.colors import ListedColormap
+            # my_cmap = []
+            # multiplier = 2
+            # for rgba in plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N)):
+            #     newRgba = []
+            #     for component in rgba:
+            #         if component*multiplier < 1:
+            #             newRgba.append(component*multiplier )
+            #         else:
+            #             newRgba.append(component * 1)
+            #     my_cmap.append(newRgba)
+            # my_cmap = ListedColormap(my_cmap)
+
+            # outra abordagem para alterar os poros para azul
+            my_cmap = plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N))
+            #---------- trecho que altera o colormap padrao cinza ---------#
+            MIN_INDEX = 5
+            MAX_INDEX = 7
+            for index,ndarray in enumerate(my_cmap):
+                # altera as primeiras linhas do colormap padrao Greys_r para usar cor azul
+                if index < MAX_INDEX and index > MIN_INDEX:
+                    my_cmap[index] = np.array((0,0,1,1))
+            #------- fim do trecho que altera o colormap padrao cinza ------#
+            my_cmap = ListedColormap(my_cmap)
 
             if self.segmentationType in self.COLORED_TYPES:
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
             else:
-                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
+                # pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
+                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = my_cmap, vmin=61)
                 print('np.amax(self._Mnp_2Dslice)',np.amax(self._Mnp_2Dslice))
                 print('np.amin(self._Mnp_2Dslice)',np.amin(self._Mnp_2Dslice))
-
-                #---------- trecho para transformar preto em azul ---------#
+                #
+                # # #---------- trecho para transformar preto em azul ---------#
                 # obtendo cor de fundo
                 from PIL import Image
                 im = Image.open(astr_outputFile)
                 rgb_im = im.convert('RGB')
-                rgbTuple = rgb_im.getpixel((1, 1))
-                # rgbTuple = (123,123,1234)
+                rgbFirstPixel = rgb_im.getpixel((1, 1))
+                # rgbFirstPixel = (123,123,1234)
 
                 # obtendo todos os rgb dos pixels
                 img = Image.open(astr_outputFile)
@@ -502,23 +530,23 @@ class med2image(object):
                 # maxBlack = tuple([255*x for x in cm.Greys_r(60)]) #lento!
                 # minBlack = cm.Greys_r(1)
                 for r,g,b,a in datas:
-                    if r == rgbTuple[0] and g == rgbTuple[1] and b == rgbTuple[2]:
+                    if r == rgbFirstPixel[0] and g == rgbFirstPixel[1] and b == rgbFirstPixel[2]:
                         # deixa o fundo transparente
                         newData.append((255, 255, 255, 0))
                     else:
-                        # deixa azul os tons que estejam entre minBlack e maxBlack
-                        maxBlack = (40,40,40,255)
-                        minBlack = (0,0,0,255)
-                        if (r < maxBlack[0] and r >= minBlack[0]) and \
-                                (g < maxBlack[1] and g >= minBlack[1]) and \
-                                (b < maxBlack[2] and b >= minBlack[2]):
-                            newData.append((0, 0, 255, 255))
-                        else:
+                    #     # deixa azul os tons que estejam entre minBlack e maxBlack
+                    #     maxBlack = (30,30,30,255)
+                    #     minBlack = (0,0,0,255)
+                    #     if (r < maxBlack[0] and r >= minBlack[0]) and \
+                    #             (g < maxBlack[1] and g >= minBlack[1]) and \
+                    #             (b < maxBlack[2] and b >= minBlack[2]):
+                    #         newData.append((0, 0, 255, 255))
+                    #     else:
                             newData.append((r, g, b, a))
 
                 img.putdata(newData)
                 img.save(astr_outputFile, astr_outputFile.rsplit('.',1)[1]) #sobreescreve a imagem
-
+                # # #------- fim do trecho para transformar preto em azul ------#
 
     def invert_slice_intensities(self):
         '''
