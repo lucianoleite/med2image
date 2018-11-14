@@ -314,10 +314,16 @@ class med2image(object):
         if indexStart == 0 and indexStop == -1:
             indexStop = dims[dim_ix[str_dim]]
 
+        #teste================================
+        print("[318] np.amax(self._Vnp_3DVol)",np.amax(self._Vnp_3DVol))
+        print("[319] np.amin(self._Vnp_3DVol)",np.amin(self._Vnp_3DVol))
+        # print("[320] np.unique(self._Vnp_3DVol)",np.unique(self._Vnp_3DVol),len(np.unique(self._Vnp_3DVol)))
+
         # modifying gray colormap to use blue based on the max value of the 3D surface
         if not self.mycm and self.segmentationType not in self.COLORED_TYPES:
             self.maxMatrixValue = np.amax(self._Vnp_3DVol)
-            self.mycm = self.generateBluePoreColormap(maxTotalValue=self.maxMatrixValue,maxBlueValue=60)
+            # self.mycm = self.generateBluePoreColormap(maxTotalValue=self.maxMatrixValue,maxBlueValue=60)
+            self.mycm = self.generateLighterColormap()
 
         # getting max value for using in SEG_MINERALS
         if not self.maxMatrixValue and self.segmentationType == self.SEG_MINERALS:
@@ -331,6 +337,7 @@ class med2image(object):
             for i in range(0, dims[dim_ix['z']]):
                 self.slice_number = i
                 self._Mnp_2Dslice = self._Vnp_3DVol[:, :, i]
+                # self._Mnp_2Dslice = 2*self._Vnp_3DVol[:, :, i] # teste clareamento imagens
 
                 slice_keys = numpy.unique(self._Mnp_2Dslice)
                 
@@ -501,34 +508,35 @@ class med2image(object):
                 # pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
                 try:
                     pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
+                    # pylab.imsave(astr_outputFile+'_original', self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r)
                 except Exception as ex:
                     print("[slice_save @ med2image 514] Ocorreu erro com my_cmap",ex)
                     pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
 
-                #=============================trecho para remover transparencia============================#
-                # obtendo cor de fundo
-                from PIL import Image
-                im = Image.open(astr_outputFile)
-                rgb_im = im.convert('RGB')
-                rgbFirstPixel = rgb_im.getpixel((1, 1))
-
-                # obtendo todos os rgb dos pixels
-                img = Image.open(astr_outputFile)
-                img = img.convert("RGBA")
-                datas = img.getdata()
-
-                newData = []
-                # maxBlack = tuple([255*x for x in cm.Greys_r(60)]) #lento!
-                # minBlack = cm.Greys_r(1)
-                for r,g,b,a in datas:
-                    if r == rgbFirstPixel[0] and g == rgbFirstPixel[1] and b == rgbFirstPixel[2]: # deixa o fundo transparente
-                        newData.append((255, 255, 255, 0))
-                    else: # usa a mesma cor
-                            newData.append((r, g, b, a))
-
-                img.putdata(newData)
-                img.save(astr_outputFile, astr_outputFile.rsplit('.',1)[1]) #sobreescreve a imagem
-                # ===========================fim trecho para remover transparencia==========================#
+                # #=============================trecho para remover transparencia============================#
+                # # obtendo cor de fundo
+                # from PIL import Image
+                # im = Image.open(astr_outputFile)
+                # rgb_im = im.convert('RGB')
+                # rgbFirstPixel = rgb_im.getpixel((1, 1))
+                #
+                # # obtendo todos os rgb dos pixels
+                # img = Image.open(astr_outputFile)
+                # img = img.convert("RGBA")
+                # datas = img.getdata()
+                #
+                # newData = []
+                # # maxBlack = tuple([255*x for x in cm.Greys_r(60)]) #lento!
+                # # minBlack = cm.Greys_r(1)
+                # for r,g,b,a in datas:
+                #     if r == rgbFirstPixel[0] and g == rgbFirstPixel[1] and b == rgbFirstPixel[2]: # deixa o fundo transparente
+                #         newData.append((255, 255, 255, 0))
+                #     else: # usa a mesma cor
+                #             newData.append((r, g, b, a))
+                #
+                # img.putdata(newData)
+                # img.save(astr_outputFile, astr_outputFile.rsplit('.',1)[1]) #sobreescreve a imagem
+                # # ===========================fim trecho para remover transparencia==========================#
 
     def invert_slice_intensities(self):
         '''
@@ -547,6 +555,7 @@ class med2image(object):
         MAX_INDEX = 40
         try:
             maxIndex = int( (maxBlueValue/maxTotalValue)*len(my_cmap) )
+            # print("[generateBluePoreColormap 558] maxTotalValue,maxBlueValue,len(my_cmap)",maxTotalValue,maxBlueValue,len(my_cmap))
             print("[generateBluePoreColormap 564] MaxIndex com limite a partir dos dados ",maxIndex)
         except:
             maxIndex = MAX_INDEX
@@ -563,12 +572,14 @@ class med2image(object):
         import matplotlib.pyplot as plt
         from matplotlib.colors import ListedColormap
         my_cmap = []
-        multiplier = 2
-        for rgba in plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N)):
+        MULTIPLIER = 1.5
+        INDEX_LIMIT = int(0.4 * len(plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N)))) # pega percentual do total de tons
+        print("=============len(plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N))",len(plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N))))
+        for index,rgba in enumerate(plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N))):
             newRgba = []
             for component in rgba:
-                if component*multiplier < 1:
-                    newRgba.append(component*multiplier )
+                if component*MULTIPLIER < 1 and index < INDEX_LIMIT:
+                    newRgba.append(component*MULTIPLIER )
                 else:
                     newRgba.append(component * 1)
             my_cmap.append(newRgba)
