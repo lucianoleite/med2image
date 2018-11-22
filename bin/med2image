@@ -95,6 +95,10 @@ parser.add_argument('--type',
                     help = 'segmentation type ',
                     dest = 'segmentationType',
                     default = 'Projecao Segmentada Pore Labeled')
+parser.add_argument('--light',
+                    help = 'uses lighter grayscale',
+                    dest = 'lightGrayscale',
+                    action='store_true')
 
 def synopsis(ab_shortOnly=False):
     scriptName = os.path.basename(sys.argv[0])
@@ -118,6 +122,7 @@ def synopsis(ab_shortOnly=False):
                     [-x|--man]				   \\
                     [--type <segmentationType>]				    \\
                     [-c|--colorTxt	<path/to/colormap.txt>]	    \\
+                    [--light]	    \\
 		    [-y|--synopsis]
 
     BRIEF EXAMPLE
@@ -289,6 +294,7 @@ if b_niftiExt:
         reslice=args.reslice,
         segmentationType=args.segmentationType,
         colorTxt=args.colorTxt,
+        lightGrayscale=args.lightGrayscale,
     )
 
     print('sliceToConvert:', args.sliceToConvert)
