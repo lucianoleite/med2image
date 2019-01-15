@@ -29,11 +29,10 @@ from matplotlib.colors import LinearSegmentedColormap
 from . import error
 from . import message as msg
 from . import systemMisc as misc
-from .color_map import createColorDict
-from math import ceil
-import math
+from .color_map import global_color_dict
+
+
 import numpy
-import collections
 class med2image(object):
     """
         med2image accepts as input certain medical image formatted data
@@ -80,15 +79,6 @@ class med2image(object):
             'error': 'the DICOM file does not seem to contain a SeriesDescription tag.',
             'exitCode': 30}
     }
-
-    # Custom constants
-    NON_SEGMENTED = 'Projecao Tomografica'
-    SEG_PHASES = 'Projecao Segmentada Fases'
-    SEG_PORE = 'Projecao Segmentada Poro'
-    SEG_PORE_LABELED = 'Projecao Segmentada Pore Labeled'
-    SEG_MINERALS = 'Projecao Segmentada Minerais'
-    COLORED_TYPES = [SEG_PHASES, SEG_PORE_LABELED, SEG_MINERALS]
-    NON_COLORED_TYPES = [NON_SEGMENTED, SEG_PORE]
         
     def log(self, *args):
         '''
@@ -133,9 +123,7 @@ class med2image(object):
         return astr
 
     def __init__(self, **kwargs):
-        self.slice_number               = -1
-        self.mycm                       = None # modifies default Greys_r colormap. It can map blue color for lower values
-                                               # if NON_SEGMENTED or generates a colormap based on the colormap file
+
         #
         # Object desc block
         #
@@ -184,13 +172,6 @@ class med2image(object):
         self._b_reslice                 = False
         self.func                       = None #transformation function
 
-        #Custom attributes for colored segmentations
-        self.segmentationType           = None # to check if is colored 
-        self.colorTxt                   = None # to customize colormap
-        self.maxMatrixValue             = None # can represent the number of phases (SEG_MINERALS/SEG_PHASES) or simply
-                                               # the greatest value on the matrix (NON_SEGMENTED,SEG_PORE_LABELED)
-
-        # self.segmentationType       = value
         for key, value in kwargs.items():
             if key == "inputFile":          self._str_inputFile         = value
             if key == "outputDir":          self._str_outputDir         = value
@@ -200,8 +181,6 @@ class med2image(object):
             if key == "frameToConvert":     self._str_frameToConvert    = value
             if key == "showSlices":         self._b_showSlices          = value
             if key == 'reslice':            self._b_reslice             = value
-            if key == 'segmentationType':   self.segmentationType       = value.replace('_',' ') # recebe Projecao_Segmentada_Fases mas testa Projecao Segmentada Fases
-            if key == 'colorTxt':           self.colorTxt               = value # path/to/colormap.txt
 
         if self._str_frameToConvert.lower() == 'm':
             self._b_convertMiddleFrame = True
@@ -314,62 +293,7 @@ class med2image(object):
         if indexStart == 0 and indexStop == -1:
             indexStop = dims[dim_ix[str_dim]]
 
-        # modifying gray colormap to use blue based on the max value of the 3D surface
-        if not self.mycm and self.segmentationType not in self.COLORED_TYPES:
-            self.maxMatrixValue = np.amax(self._Vnp_3DVol)
-            self.mycm = self.generateBluePoreColormap(maxTotalValue=self.maxMatrixValue,maxBlueValue=60)
-
-        # getting max value for using in SEG_MINERALS
-        if not self.maxMatrixValue and self.segmentationType == self.SEG_MINERALS:
-            self.maxMatrixValue = np.amax(self._Vnp_3DVol) # number of phases
-
-        if self.segmentationType in self.COLORED_TYPES:
-            global_color_dict = createColorDict(self.colorTxt)
-            self.mycolors = global_color_dict.values()
-            # self.mycolors = getFileColor()
-
-            for i in range(0, dims[dim_ix['z']]):
-                self.slice_number = i
-                self._Mnp_2Dslice = self._Vnp_3DVol[:, :, i]
-
-                slice_keys = numpy.unique(self._Mnp_2Dslice)
-                
-                for key in slice_keys:
-                    if not key in self.d:
-                        self.d[key] = []
-                    self.d[key].append(self.slice_number)
-
-            color_dict = {}
-            for k,v in self.d.items():
-                if k > 6 :
-                    break 
-                #print ("pore: ", k,  "len slices: ", len(v), " slices: ", v)
-        
-            global_colors = list(global_color_dict.values())
-            transparency, global_colors = global_colors[:1], global_colors[1:]
-            num_colors =  len(global_colors)
-            num_phases = len(self.d.items())
-
-            self.mycolors = transparency + list( global_colors * math.ceil( float(num_phases)/num_colors))[:num_phases]
-
-            self.mycm = LinearSegmentedColormap.from_list('custom_color_map', self.mycolors ,N=len(self.mycolors))
-            '''
-            print ("The original colormap has len =  ", num_colors)
-            print ("The original colormap is =  ", transparency, global_colors)
-            print ("The # of phases in the input =   ", num_phases)
-            print ("The extended color map has len = ", len(self.mycolors))
-            '''
-            # print( '[355] self.mycm(0)',self.mycm(0))
-            # print( 'self.mycm(1)',self.mycm(1))
-            # print( 'self.mycm(2)',self.mycm(2))
-            # print( 'self.mycm(3)',self.mycm(3))
-            # print( 'self.mycm(4)',self.mycm(4))
-            # print( 'self.mycm(5)',self.mycm(5))
-
         for i in range(indexStart, indexStop):
-        #for i in range(0, 20):
-
-            self.slice_number = i
             if str_dim == 'x':
                 self._Mnp_2Dslice = self._Vnp_3DVol[i, :, :]
             elif str_dim == 'y':
@@ -380,64 +304,7 @@ class med2image(object):
             str_outputFile = self.get_output_file_name(index=i, subDir=str_subDir)
             if str_outputFile.endswith('dcm'):
                 self._dcm = self._dcmList[i]
-
-                if self.segmentationType in self.COLORED_TYPES:
-
-                    if self.segmentationType == self.SEG_MINERALS:
-                        slice_color_dict = {}
-                        slice_keys = numpy.unique(self._Mnp_2Dslice)
-
-                        for key in slice_keys:
-                            if key in global_color_dict:
-                                slice_color_dict[key] = global_color_dict[key]
-
-                        if len(slice_keys) <= 1:
-                            slice_color_dict = global_color_dict.copy()
-                        mycolors = list(slice_color_dict.values())
-                        # print (slice_keys)
-                        # print (list(slice_color_dict.keys()))
-                        # print (list(slice_color_dict.values()))
-                        self.mycm = LinearSegmentedColormap.from_list('custom_color_map', mycolors, N=len(mycolors))
-                    else:
-                        slice_colors = []
-                        slice_keys = numpy.unique(self._Mnp_2Dslice)
-                        slice_keys = numpy.sort(slice_keys)
-                        pore_index = 0
-                        for key in self.d.keys():
-
-                            if key in slice_keys:
-                                slice_colors += [self.mycolors[pore_index]]
-                                last_pore_index = pore_index
-                            pore_index+=1
-
-                        slice_colors = self.mycolors[:last_pore_index+1]
-
-                        if last_pore_index == 0:
-                            slice_colors = self.mycolors
-                            print ("+++ Warning Transparent Slice. Using the whole color list")
-
-
-                        '''print ("\n\n\npore_index  = ", last_pore_index)
-                        print ("The # of phases in the slice =   ", len(slice_keys))
-                        print ("The extended color map has len = ", len(slice_colors))
-                        print ("+The slice color map is = ", slice_colors)
-                        print ("+The phases in the slice are   ", slice_keys)'''
-                        self.mycm = LinearSegmentedColormap.from_list('custom_color_map', slice_colors ,N=len(slice_colors))
-
             self.slice_save(str_outputFile)
-        
-        # counting number of files in current dim path and storing in total.txt
-        try:
-            fullPathDim = os.path.dirname(str_outputFile)
-            totalFilePath = os.path.join(fullPathDim,'total.txt')
-            if os.path.isfile(totalFilePath):
-                os.remove(totalFilePath)
-            numberOfFiles = len([name for name in os.listdir(fullPathDim) if os.path.isfile(os.path.join(fullPathDim, name))])
-            f = open(totalFilePath, 'w')
-            f.write(str(numberOfFiles))
-            f.close
-        except Exception as ex:
-            print("[dim_save] There was an error generating total.txt ",ex)
 
     def process_slice(self, b_rot90=None):
         '''
@@ -448,7 +315,6 @@ class med2image(object):
         if self.func == 'invertIntensities':
             self.invert_slice_intensities()
 
-    d = collections.OrderedDict()
     def slice_save(self, astr_outputFile):
         '''
         Saves a single slice.
@@ -471,109 +337,29 @@ class med2image(object):
 #-
             #print (cm.Greys_r)
             #print (mycm)
-            # print ("[med2image 474] self._Mnp_2Dslice",self._Mnp_2Dslice[620])
-            # print ("[med2image 475] self._Mnp_2Dslice",len(self._Mnp_2Dslice))
-            # print ("[med2image 476] astr_outputFile",astr_outputFile)
-            #print (self._str_sliceToConvert )
+            #print (self._Mnp_2Dslice)
+            #print (astr_outputFile)
             #print (numpy.unique(self._Mnp_2Dslice))
-            #len(d)
-            # for key in slice_keys:
-            #     if key in global_color_dict:
-            #         slice_color_dict[key] = global_color_dict[key]
-            # if len(slice_keys) <= 1:
-            #     print ('a')
-            #     slice_color_dict = global_color_dict.copy()
-            # print("self.d len ", len(self.d))
-            # slice_color_dict = global_color_dict.copy()
-            # mycolors = list(slice_color_dict.values())*50
-            #print ("len slice_keys =", len(slice_keys))          
-            
+            slice_color_dict = {}
+            slice_keys = numpy.unique(self._Mnp_2Dslice)
+            for key in slice_keys:
+                if key in global_color_dict:
+                    slice_color_dict[key] = global_color_dict[key]
+            if len(slice_keys) <= 1:
+                slice_color_dict = global_color_dict.copy()
+            mycolors = list(slice_color_dict.values())
+            #print (slice_keys)
+            #print (list(slice_color_dict.keys()))
+            #print (list(slice_color_dict.values()))            
+            mycm = LinearSegmentedColormap.from_list('custom_color_map', mycolors ,N=len(mycolors))
             #pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r)
             #pylab.imsave('/home/luciano/nifti_data/MYCM-output.png', self._Mnp_2Dslice, format=fformat, cmap = mycm)
-
-            if self.segmentationType == self.SEG_MINERALS:
-                # using the previously setted self.maxMatrixValue which counts the number of phases based on the max
-                # value found on the matrix. It avoids the wrong mapping of the colors that jumps 1 or more colors
-                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm, vmax=self.maxMatrixValue+1)
-            elif self.segmentationType in self.COLORED_TYPES:
-                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
-            else:
-                # pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
-                try:
-                    pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
-                except Exception as ex:
-                    print("[slice_save @ med2image 514] Ocorreu erro com my_cmap",ex)
-                    pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
-
-                #=============================trecho para remover transparencia============================#
-                # obtendo cor de fundo
-                from PIL import Image
-                im = Image.open(astr_outputFile)
-                rgb_im = im.convert('RGB')
-                rgbFirstPixel = rgb_im.getpixel((1, 1))
-
-                # obtendo todos os rgb dos pixels
-                img = Image.open(astr_outputFile)
-                img = img.convert("RGBA")
-                datas = img.getdata()
-
-                newData = []
-                # maxBlack = tuple([255*x for x in cm.Greys_r(60)]) #lento!
-                # minBlack = cm.Greys_r(1)
-                for r,g,b,a in datas:
-                    if r == rgbFirstPixel[0] and g == rgbFirstPixel[1] and b == rgbFirstPixel[2]: # deixa o fundo transparente
-                        newData.append((255, 255, 255, 0))
-                    else: # usa a mesma cor
-                            newData.append((r, g, b, a))
-
-                img.putdata(newData)
-                img.save(astr_outputFile, astr_outputFile.rsplit('.',1)[1]) #sobreescreve a imagem
-                # ===========================fim trecho para remover transparencia==========================#
-
+            pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = mycm)
     def invert_slice_intensities(self):
         '''
         Inverts intensities of a single slice.
         '''
         self._Mnp_2Dslice = self._Mnp_2Dslice*(-1) + self._Mnp_2Dslice.max()
-
-    def generateBluePoreColormap(self,maxTotalValue,maxBlueValue=60):
-        import matplotlib.pyplot as plt
-        from matplotlib.colors import ListedColormap
-
-        # outra abordagem para alterar os poros para azul
-        my_cmap = plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N))
-        # ---------- trecho que altera o colormap padrao cinza ---------#
-        MIN_INDEX = 0
-        MAX_INDEX = 40
-        try:
-            maxIndex = int( (maxBlueValue/maxTotalValue)*len(my_cmap) )
-            print("[generateBluePoreColormap 564] MaxIndex com limite a partir dos dados ",maxIndex)
-        except:
-            maxIndex = MAX_INDEX
-        for index, ndarray in enumerate(my_cmap):
-            # altera as primeiras linhas do colormap padrao Greys_r para usar cor azul
-            if index < maxIndex and index > MIN_INDEX:
-                my_cmap[index] = np.array((0, 0.972, 0.915, 1))
-        # ------- fim do trecho que altera o colormap padrao cinza ------#
-        my_cmap = ListedColormap(my_cmap)
-        return my_cmap
-
-    def generateLighterColormap(self):
-        # Altera o colormap cinza para ficar mais claro (colormap nao linear)
-        import matplotlib.pyplot as plt
-        from matplotlib.colors import ListedColormap
-        my_cmap = []
-        multiplier = 2
-        for rgba in plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N)):
-            newRgba = []
-            for component in rgba:
-                if component*multiplier < 1:
-                    newRgba.append(component*multiplier )
-                else:
-                    newRgba.append(component * 1)
-            my_cmap.append(newRgba)
-        my_cmap = ListedColormap(my_cmap)
-        return my_cmap
 
 
 class med2image_dcm(med2image):
@@ -725,7 +511,7 @@ class med2image_nii(med2image):
         '''
         Runs the NIfTI conversion based on internal state.
         '''
-
+        print("=========================rodando pore_label")
         self._log('About to perform NifTI to %s conversion...\n' %
                   self._str_outputFileType)
 

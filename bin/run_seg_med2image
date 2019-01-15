@@ -1,11 +1,23 @@
 #!/bin/bash
+if [ $# -lt 3 ] || [ $# -gt 4 ]
+ then
+   echo "Chamada do med2image modificado para projecoes com cor"
+   echo "[Erro] Deve usar 3 ou 4 argumentos de entrada"
+   echo "Uso do programa: $0 <path/to/file.nii> <path/to/folder> <PROJ_TYPE> [path/to/colormap.txt]"
+   exit 1
+fi
 
 input_file=$1
 out_dir=$2
-echo $input_file 
-echo $out_dir
+proj_type=$3
+colormap_call=""
 
-. ~/med2image_venv/bin/activate
+if [ $# -eq 4 ]; then #nao enviou colormap.txt
+   colormap_call="-c $4"
+   echo "Usando arquivo de colormap $4"
+fi
+
+. ~/med2image_venv/bin/activate 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-$DIR/med2image -i $input_file -d $out_dir -t png -r
+$DIR/med2image -i $input_file -d $out_dir -t png -r --type $proj_type $colormap_call #-s 500 # -s m/<int sliceNumber> soh pra testes (converte soh o slice do meio)
