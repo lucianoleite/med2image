@@ -69,6 +69,9 @@ def createColorDict(file):
     f = open(file, 'r')
     listColors = []
     for line in f:
+        # ignora o que tiver depois dos # (apenas conteudo de legenda, nada para se preocupar com a leitura do RGB)
+        # Fazer isso impede bug se houver comentario com parenteses
+        line = line.split("#",1)[0]
         # separa palavras apenas fora do parenteses
         words = re.findall('\[[^\]]*\]|\([^\)]*\)|\"[^\"]*\"|\S+', line)
         for word in words:
