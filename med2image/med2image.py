@@ -187,6 +187,7 @@ class med2image(object):
         #Custom attributes for colored segmentations
         self.segmentationType           = None # to check if is colored 
         self.colorTxt                   = None # to customize colormap
+        self.blueLimit                  = None # to customize grayscale
         self.maxMatrixValue             = None # can represent the number of phases (SEG_MINERALS/SEG_PHASES) or simply
                                                # the greatest value on the matrix (NON_SEGMENTED,SEG_PORE_LABELED)
 
@@ -202,6 +203,7 @@ class med2image(object):
             if key == 'reslice':            self._b_reslice             = value
             if key == 'segmentationType':   self.segmentationType       = value.replace('_',' ') # recebe Projecao_Segmentada_Fases mas testa Projecao Segmentada Fases
             if key == 'colorTxt':           self.colorTxt               = value # path/to/colormap.txt
+            if key == 'blueLimit':          self.blueLimit              = int(value) # valor limite para definir poro como azul
 
         if self._str_frameToConvert.lower() == 'm':
             self._b_convertMiddleFrame = True
@@ -317,7 +319,13 @@ class med2image(object):
         # modifying gray colormap to use blue based on the max value of the 3D surface
         if not self.mycm and self.segmentationType not in self.COLORED_TYPES:
             self.maxMatrixValue = np.amax(self._Vnp_3DVol)
-            self.mycm = self.generateBluePoreColormap(maxTotalValue=self.maxMatrixValue,maxBlueValue=60)
+            print("[med2image] np.amin(self._Vnp_3DVol)",np.amin(self._Vnp_3DVol))
+            print("[med2image] np.amax(self._Vnp_3DVol)",self.maxMatrixValue)
+            self.mycm = self.generateBluePoreColormap(maxTotalValue=self.maxMatrixValue,maxBlueValue=self.blueLimit)
+
+            # for i in range(0,257):
+            # # Verifica o mapeamento do colormap. Se valor for i, retorna a cor correspondente
+            #     print( '==============[365] self.mycm(i)',i, self.mycm(i))
 
         # getting max value for using in SEG_MINERALS
         if not self.maxMatrixValue and self.segmentationType == self.SEG_MINERALS:
@@ -376,6 +384,7 @@ class med2image(object):
                 self._Mnp_2Dslice = self._Vnp_3DVol[:, i, :]
             else:
                 self._Mnp_2Dslice = self._Vnp_3DVol[:, :, i]
+            b_rot90 = False # Evitar espelhamentos e rotacoes de 90 graus
             self.process_slice(b_rot90)
             str_outputFile = self.get_output_file_name(index=i, subDir=str_subDir)
             if str_outputFile.endswith('dcm'):
@@ -537,6 +546,9 @@ class med2image(object):
         self._Mnp_2Dslice = self._Mnp_2Dslice*(-1) + self._Mnp_2Dslice.max()
 
     def generateBluePoreColormap(self,maxTotalValue,maxBlueValue=60):
+        print("==========[generateBluePoreColormap 564] maxBlueValue ", maxBlueValue)
+
+        maxBlueValue += 1
         import matplotlib.pyplot as plt
         from matplotlib.colors import ListedColormap
 
@@ -558,22 +570,22 @@ class med2image(object):
         my_cmap = ListedColormap(my_cmap)
         return my_cmap
 
-    def generateLighterColormap(self):
-        # Altera o colormap cinza para ficar mais claro (colormap nao linear)
-        import matplotlib.pyplot as plt
-        from matplotlib.colors import ListedColormap
-        my_cmap = []
-        multiplier = 2
-        for rgba in plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N)):
-            newRgba = []
-            for component in rgba:
-                if component*multiplier < 1:
-                    newRgba.append(component*multiplier )
-                else:
-                    newRgba.append(component * 1)
-            my_cmap.append(newRgba)
-        my_cmap = ListedColormap(my_cmap)
-        return my_cmap
+    # def generateLighterColormap(self):
+    #     # Altera o colormap cinza para ficar mais claro (colormap nao linear)
+    #     import matplotlib.pyplot as plt
+    #     from matplotlib.colors import ListedColormap
+    #     my_cmap = []
+    #     multiplier = 2
+    #     for rgba in plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N)):
+    #         newRgba = []
+    #         for component in rgba:
+    #             if component*multiplier < 1:
+    #                 newRgba.append(component*multiplier )
+    #             else:
+    #                 newRgba.append(component * 1)
+    #         my_cmap.append(newRgba)
+    #     my_cmap = ListedColormap(my_cmap)
+    #     return my_cmap
 
 
 class med2image_dcm(med2image):
