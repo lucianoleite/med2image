@@ -317,7 +317,8 @@ class med2image(object):
             indexStop = dims[dim_ix[str_dim]]
 
         # modifying gray colormap to use blue based on the max value of the 3D surface
-        if not self.mycm and self.segmentationType not in self.COLORED_TYPES:
+        # if self.segmentationType == self.SEG_PORE:
+        if not self.mycm and self.segmentationType == self.SEG_PORE:
             self.maxMatrixValue = np.amax(self._Vnp_3DVol)
             print("[med2image] np.amin(self._Vnp_3DVol)",np.amin(self._Vnp_3DVol))
             print("[med2image] np.amax(self._Vnp_3DVol)",self.maxMatrixValue)
@@ -384,7 +385,7 @@ class med2image(object):
                 self._Mnp_2Dslice = self._Vnp_3DVol[:, i, :]
             else:
                 self._Mnp_2Dslice = self._Vnp_3DVol[:, :, i]
-            b_rot90 = False # Evitar espelhamentos e rotacoes de 90 graus
+
             self.process_slice(b_rot90)
             str_outputFile = self.get_output_file_name(index=i, subDir=str_subDir)
             if str_outputFile.endswith('dcm'):
@@ -452,9 +453,12 @@ class med2image(object):
         '''
         Processes a single slice.
         '''
+        #Entra aqui
         if b_rot90:
+            #Entra aqui
             self._Mnp_2Dslice = np.rot90(self._Mnp_2Dslice)
         if self.func == 'invertIntensities':
+            # Nao entra aqui
             self.invert_slice_intensities()
 
     d = collections.OrderedDict()
@@ -506,38 +510,53 @@ class med2image(object):
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm, vmax=self.maxMatrixValue+1)
             elif self.segmentationType in self.COLORED_TYPES:
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
-            else:
-                # pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
+            elif self.segmentationType == self.SEG_PORE:
                 try:
+                    # Trecho abaixo para adicionar todos os valores possiveis ([0-255]) a matriz para que o colormap
+                    # funcione mapeando cada valor em uma cor (se a matriz 2D tiver menos valores que o colormap, algumas
+                    # cores sao mapeadas errado
+                    zeros = np.zeros(self._Mnp_2Dslice.shape, dtype=np.uint8)
+                    for i in range(1, self.maxMatrixValue):
+                        zeros[-1, -i] = i
+                    self._Mnp_2Dslice += zeros
                     pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
+
                 except Exception as ex:
-                    print("[slice_save @ med2image 514] Ocorreu erro com my_cmap",ex)
+                    print("[slice_save @ med2image 525] Ocorreu erro com my_cmap",ex)
                     pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
+            else:
+                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
 
-                #=============================trecho para remover transparencia============================#
-                # obtendo cor de fundo
-                from PIL import Image
-                im = Image.open(astr_outputFile)
-                rgb_im = im.convert('RGB')
-                rgbFirstPixel = rgb_im.getpixel((1, 1))
+            #=============================trecho para remover transparencia============================#
+            # obtendo cor de fundo
+            from PIL import Image
+            im = Image.open(astr_outputFile)
+            rgb_im = im.convert('RGB')
+            rgbFirstPixel = rgb_im.getpixel((1, 1))
 
-                # obtendo todos os rgb dos pixels
-                img = Image.open(astr_outputFile)
-                img = img.convert("RGBA")
-                datas = img.getdata()
+            # obtendo todos os rgb dos pixels
+            img = Image.open(astr_outputFile)
+            img = img.convert("RGBA")
+            datas = img.getdata()
 
-                newData = []
-                # maxBlack = tuple([255*x for x in cm.Greys_r(60)]) #lento!
-                # minBlack = cm.Greys_r(1)
-                for r,g,b,a in datas:
-                    if r == rgbFirstPixel[0] and g == rgbFirstPixel[1] and b == rgbFirstPixel[2]: # deixa o fundo transparente
-                        newData.append((255, 255, 255, 0))
-                    else: # usa a mesma cor
-                            newData.append((r, g, b, a))
+            newData = []
+            # maxBlack = tuple([255*x for x in cm.Greys_r(60)]) #lento!
+            # minBlack = cm.Greys_r(1)
+            for r,g,b,a in datas:
+                if r == rgbFirstPixel[0] and g == rgbFirstPixel[1] and b == rgbFirstPixel[2]: # deixa o fundo transparente
+                    newData.append((255, 255, 255, 0))
+                else: # usa a mesma cor
+                        newData.append((r, g, b, a))
 
-                img.putdata(newData)
-                img.save(astr_outputFile, astr_outputFile.rsplit('.',1)[1]) #sobreescreve a imagem
-                # ===========================fim trecho para remover transparencia==========================#
+            img.putdata(newData)
+
+            # supostamente soh precisaria do flip no eixo z, mas acabou precisando em todos
+            axis = os.path.basename(os.path.dirname(astr_outputFile))
+            img = img.transpose(Image.FLIP_TOP_BOTTOM) # flip vertical
+
+            img.save(astr_outputFile, astr_outputFile.rsplit('.',1)[1]) #sobreescreve a imagem
+            # ===========================fim trecho para remover transparencia==========================#
+
 
     def invert_slice_intensities(self):
         '''
@@ -730,6 +749,7 @@ class med2image_nii(med2image):
             self._Vnp_4DVol     = data
             self._b_4D          = True
         if data.ndim == 3:
+            # Entra aqui
             self._Vnp_3DVol     = data
             self._b_3D          = True
 
@@ -752,6 +772,7 @@ class med2image_nii(med2image):
             self._log('4D volume detected.\n')
             frames = self._Vnp_4DVol.shape[3]
         if self._b_3D:
+            # entra aqui
             self._log('3D volume detected.\n')
 
         if self._b_convertMiddleFrame:
