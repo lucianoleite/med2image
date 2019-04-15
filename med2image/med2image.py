@@ -514,12 +514,27 @@ class med2image(object):
                 try:
                     # Trecho abaixo para adicionar todos os valores possiveis ([0-255]) a matriz para que o colormap
                     # funcione mapeando cada valor em uma cor (se a matriz 2D tiver menos valores que o colormap, algumas
-                    # cores sao mapeadas errado
-                    zeros = np.zeros(self._Mnp_2Dslice.shape, dtype=np.uint8)
+                    # cores sao mapeadas errado)
+                    augmented2Dslice = self._Mnp_2Dslice
+                    shape2Dslice = self._Mnp_2Dslice.shape
+
+                    # adiciona uma linha de zeros ao final da copia de _Mnp_2Dslice
+                    zerosLine = np.zeros((1,shape2Dslice[1]))
+                    augmented2Dslice = numpy.vstack([augmented2Dslice, zerosLine])
+                    zeros = np.zeros(shape2Dslice, dtype=np.uint8)
                     for i in range(1, self.maxMatrixValue):
                         zeros[-1, -i] = i
+                        augmented2Dslice[-1,-i] = i
                     self._Mnp_2Dslice += zeros
-                    pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
+                    pylab.imsave(astr_outputFile, augmented2Dslice, format=fformat, cmap = self.mycm)
+                    # pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
+
+                    # Remove a linha adicionada usando um crop de 1 pixel de largura no final da imagem
+                    from PIL import Image
+                    img = Image.open(astr_outputFile)
+                    w, h = img.size
+                    img = img.crop((0, 0, w, h - 1))
+                    img.save(astr_outputFile, astr_outputFile.rsplit('.', 1)[1])  # sobreescreve a imagem
 
                 except Exception as ex:
                     print("[slice_save @ med2image 525] Ocorreu erro com my_cmap",ex)
@@ -550,9 +565,10 @@ class med2image(object):
 
             img.putdata(newData)
 
-            # supostamente soh precisaria do flip no eixo z, mas acabou precisando em todos
+            # soh precisa do flip no eixo z
             axis = os.path.basename(os.path.dirname(astr_outputFile))
-            img = img.transpose(Image.FLIP_TOP_BOTTOM) # flip vertical
+            if axis == 'z':
+                img = img.transpose(Image.FLIP_TOP_BOTTOM) # flip vertical
 
             img.save(astr_outputFile, astr_outputFile.rsplit('.',1)[1]) #sobreescreve a imagem
             # ===========================fim trecho para remover transparencia==========================#
@@ -565,8 +581,6 @@ class med2image(object):
         self._Mnp_2Dslice = self._Mnp_2Dslice*(-1) + self._Mnp_2Dslice.max()
 
     def generateBluePoreColormap(self,maxTotalValue,maxBlueValue=60):
-        print("==========[generateBluePoreColormap 564] maxBlueValue ", maxBlueValue)
-
         maxBlueValue += 1
         import matplotlib.pyplot as plt
         from matplotlib.colors import ListedColormap
