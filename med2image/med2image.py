@@ -88,6 +88,7 @@ class med2image(object):
     SEG_PORE_LABELED = 'Projecao Segmentada Pore Labeled'
     SEG_MINERALS = 'Projecao Segmentada Minerais'
     COLORED_TYPES = [SEG_PHASES, SEG_PORE_LABELED, SEG_MINERALS]
+    SEGMENTED =  COLORED_TYPES + [SEG_PORE]
     NON_COLORED_TYPES = [NON_SEGMENTED, SEG_PORE]
         
     def log(self, *args):
@@ -190,6 +191,9 @@ class med2image(object):
         self.blueLimit                  = None # to customize grayscale
         self.maxMatrixValue             = None # can represent the number of phases (SEG_MINERALS/SEG_PHASES) or simply
                                                # the greatest value on the matrix (NON_SEGMENTED,SEG_PORE_LABELED)
+        # self.minMatrixValue             = None # usada para poros azuis
+        self.minAllowedValue            = 0 # assumindo que seja 0. Valores positivos bugam algumas coisas, negativos
+                                            # provavelmente tb
 
         # self.segmentationType       = value
         for key, value in kwargs.items():
@@ -331,6 +335,9 @@ class med2image(object):
         # getting max value for using in SEG_MINERALS
         if not self.maxMatrixValue and self.segmentationType == self.SEG_MINERALS:
             self.maxMatrixValue = np.amax(self._Vnp_3DVol) # number of phases
+
+        # if not self.minMatrixValue and self.segmentationType in self.SEGMENTED:
+        #     self.minMatrixValue = np.amin(self._Vnp_3DVol)
 
         if self.segmentationType in self.COLORED_TYPES:
             global_color_dict = createColorDict(self.colorTxt)
@@ -511,34 +518,61 @@ class med2image(object):
             elif self.segmentationType in self.COLORED_TYPES:
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
             elif self.segmentationType == self.SEG_PORE:
-                try:
-                    # Trecho abaixo para adicionar todos os valores possiveis ([0-255]) a matriz para que o colormap
-                    # funcione mapeando cada valor em uma cor (se a matriz 2D tiver menos valores que o colormap, algumas
-                    # cores sao mapeadas errado)
-                    augmented2Dslice = self._Mnp_2Dslice
-                    shape2Dslice = self._Mnp_2Dslice.shape
 
-                    # adiciona uma linha de zeros ao final da copia de _Mnp_2Dslice
-                    zerosLine = np.zeros((1,shape2Dslice[1]))
-                    augmented2Dslice = numpy.vstack([augmented2Dslice, zerosLine])
-                    zeros = np.zeros(shape2Dslice, dtype=np.uint8)
-                    for i in range(1, self.maxMatrixValue):
-                        zeros[-1, -i] = i
-                        augmented2Dslice[-1,-i] = i
-                    self._Mnp_2Dslice += zeros
-                    pylab.imsave(astr_outputFile, augmented2Dslice, format=fformat, cmap = self.mycm)
-                    # pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
 
-                    # Remove a linha adicionada usando um crop de 1 pixel de largura no final da imagem
-                    from PIL import Image
-                    img = Image.open(astr_outputFile)
-                    w, h = img.size
-                    img = img.crop((0, 0, w, h - 1))
-                    img.save(astr_outputFile, astr_outputFile.rsplit('.', 1)[1])  # sobreescreve a imagem
+                # try:
+                #     # Trecho abaixo para adicionar todos os valores possiveis ([0-255]) a matriz para que o colormap
+                #     # funcione mapeando cada valor em uma cor (se a matriz 2D tiver menos valores que o colormap, algumas
+                #     # cores sao mapeadas errado)
+                #     augmented2Dslice = self._Mnp_2Dslice
+                #     shape2Dslice = self._Mnp_2Dslice.shape
+                #
+                #     # adiciona uma linha de zeros ao final da copia de _Mnp_2Dslice
+                #     zerosLine = np.zeros((1,shape2Dslice[1]))
+                #     augmented2Dslice = numpy.vstack([augmented2Dslice, zerosLine])
+                #     # zeros = np.zeros(shape2Dslice, dtype=np.uint8)
+                #     print("+=================self.maxMatrixValue", self.maxMatrixValue)
+                #     for i in range(1, self.maxMatrixValue):
+                #         # zeros[-1, -i] = i
+                #         augmented2Dslice[-1,-i] = i
+                #     # self._Mnp_2Dslice += zeros
+                #     pylab.imsave(astr_outputFile, augmented2Dslice, format=fformat, cmap = self.mycm)
+                #     # pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
+                #
+                #     # Remove a linha adicionada usando um crop de 1 pixel de largura no final da imagem
+                #     from PIL import Image
+                #     img = Image.open(astr_outputFile)
+                #     w, h = img.size
+                #     img = img.crop((0, 0, w, h - 1))
+                #     img.save(astr_outputFile, astr_outputFile.rsplit('.', 1)[1])  # sobreescreve a imagem
+                #
+                # # except Exception as ex:
+                # #     print("[slice_save @ med2image 525] Ocorreu erro com my_cmap",ex)
+                # #     pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
 
-                except Exception as ex:
-                    print("[slice_save @ med2image 525] Ocorreu erro com my_cmap",ex)
-                    pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
+                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
+
+                # ===== obtendo somente pixels azuis para gerar camada transparente dos poros ===#
+                uniqueMatrix = np.unique(self._Mnp_2Dslice)
+                numberOfPossibleValues = len(uniqueMatrix)
+
+                linearColormap = [(0, 0, 0, 0) for _ in range(0, numberOfPossibleValues)]
+
+                for i, val in enumerate(uniqueMatrix):
+                    # if i < 20:
+                    #     print("[blueLimit] val: ", val)
+                    #     print("[blueLimit] self.minAllowedValue: ", self.minAllowedValue)
+                    #     print("[blueLimit] self.blueLimit: ", self.blueLimit)
+                    if val > self.minAllowedValue and val < self.minAllowedValue + self.blueLimit:
+                        linearColormap[i] = (0, 0.972, 0.915, 1)
+
+                print("[blueLimit] uniqueMatrix: ", uniqueMatrix[0:10])
+                print("[blueLimit] linearColormap: ", linearColormap[0:10])
+
+                # print("linearColormap: ",linearColormap)
+                CustomCmap = LinearSegmentedColormap.from_list("somente_azul", linearColormap)
+                pylab.imsave(astr_outputFile.replace('output','blue_pores_'), self._Mnp_2Dslice, format=fformat, cmap=CustomCmap)
+
             else:
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
 
