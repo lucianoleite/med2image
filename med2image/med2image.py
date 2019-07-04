@@ -24,7 +24,7 @@ import nibabel as nib
 import dicom
 import pylab
 import matplotlib.cm as cm
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 # Project specific imports
 from . import error
 from . import message as msg
@@ -34,6 +34,8 @@ from math import ceil
 import math
 import numpy
 import collections
+from PIL import Image
+
 class med2image(object):
     """
         med2image accepts as input certain medical image formatted data
@@ -188,7 +190,7 @@ class med2image(object):
         #Custom attributes for colored segmentations
         self.segmentationType           = None # to check if is colored 
         self.colorTxt                   = None # to customize colormap
-        self.blueLimit                  = None # to customize grayscale
+        self.blueLimit                  = 60   # to customize grayscale with blue spots
         self.maxMatrixValue             = None # can represent the number of phases (SEG_MINERALS/SEG_PHASES) or simply
                                                # the greatest value on the matrix (NON_SEGMENTED,SEG_PORE_LABELED)
         # self.minMatrixValue             = None # usada para poros azuis
@@ -319,18 +321,6 @@ class med2image(object):
         dim_ix = {'x':0, 'y':1, 'z':2}
         if indexStart == 0 and indexStop == -1:
             indexStop = dims[dim_ix[str_dim]]
-
-        # modifying gray colormap to use blue based on the max value of the 3D surface
-        # if self.segmentationType == self.SEG_PORE:
-        if not self.mycm and self.segmentationType == self.SEG_PORE:
-            self.maxMatrixValue = np.amax(self._Vnp_3DVol)
-            print("[med2image] np.amin(self._Vnp_3DVol)",np.amin(self._Vnp_3DVol))
-            print("[med2image] np.amax(self._Vnp_3DVol)",self.maxMatrixValue)
-            self.mycm = self.generateBluePoreColormap(maxTotalValue=self.maxMatrixValue,maxBlueValue=self.blueLimit)
-
-            # for i in range(0,257):
-            # # Verifica o mapeamento do colormap. Se valor for i, retorna a cor correspondente
-            #     print( '==============[365] self.mycm(i)',i, self.mycm(i))
 
         # getting max value for using in SEG_MINERALS
         if not self.maxMatrixValue and self.segmentationType == self.SEG_MINERALS:
@@ -550,35 +540,47 @@ class med2image(object):
                 # #     print("[slice_save @ med2image 525] Ocorreu erro com my_cmap",ex)
                 # #     pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
 
+                # Salva imagem sem poros azuis, soh escala de cinza
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
 
-                # ===== obtendo somente pixels azuis para gerar camada transparente dos poros ===#
-                uniqueMatrix = np.unique(self._Mnp_2Dslice)
-                numberOfPossibleValues = len(uniqueMatrix)
+                # =============== obtendo somente pixels azuis para gerar camada transparente dos poros =============#
+                try:
+                    # Precisa do maximo para que exista uma regra do colormap para todos os numeros de 0 ate o maximo
+                    sliceMaxValue = np.amax(self._Mnp_2Dslice)
 
-                linearColormap = [(0, 0, 0, 0) for _ in range(0, numberOfPossibleValues)]
+                    # Criando regra basica do colormap - transparente para todos os possiveis valores da matriz do slice
+                    linearColormap = [(0, 0, 0, 0) for _ in range(self.minAllowedValue + 1,sliceMaxValue )]
 
-                for i, val in enumerate(uniqueMatrix):
-                    # if i < 20:
-                    #     print("[blueLimit] val: ", val)
-                    #     print("[blueLimit] self.minAllowedValue: ", self.minAllowedValue)
-                    #     print("[blueLimit] self.blueLimit: ", self.blueLimit)
-                    if val > self.minAllowedValue and val < self.minAllowedValue + self.blueLimit:
-                        linearColormap[i] = (0, 0.972, 0.915, 1)
+                    # Para os valores entre 0 e o limite do poro azul, altera a regra do colormap para usar a cor azul
+                    for i in range(self.minAllowedValue + 1,sliceMaxValue ):
+                        if i < self.minAllowedValue + self.blueLimit:
+                            linearColormap[i] = (0, 0.972, 0.915, 1) # cor azul claro
 
-                print("[blueLimit] uniqueMatrix: ", uniqueMatrix[0:10])
-                print("[blueLimit] linearColormap: ", linearColormap[0:10])
+                    # Cria colormap de regras 1 cor : 1 valor
+                    CustomCmap = ListedColormap(linearColormap)
 
-                # print("linearColormap: ",linearColormap)
-                CustomCmap = LinearSegmentedColormap.from_list("somente_azul", linearColormap)
-                pylab.imsave(astr_outputFile.replace('output','blue_pores_'), self._Mnp_2Dslice, format=fformat, cmap=CustomCmap)
+                    # Salva arquivo temporario que sera a camada superficial com poros azuis e fundo transparente
+                    bluePoreTmpImgPath = astr_outputFile.replace('output','blue_pores')
+                    pylab.imsave(bluePoreTmpImgPath, self._Mnp_2Dslice, format=fformat, cmap=CustomCmap)
+
+                    background = Image.open(astr_outputFile)    # arquivo original em escala de cinza
+                    foreground = Image.open(bluePoreTmpImgPath) # arquivo com poros azuis
+
+                    # Sobrepoe os arquivos
+                    Image.alpha_composite(background, foreground).save(astr_outputFile)
+
+                    # Apaga arquivo temporario de poros azuis
+                    os.remove(bluePoreTmpImgPath)
+                except Exception as ex:
+                    print("[slice_save @ med2image 525] Ocorreu erro com my_cmap", ex)
+                    pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
+                # =========================== fim do trecho para colorir com pixels azuis  ===========================#
 
             else:
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
 
             #=============================trecho para remover transparencia============================#
             # obtendo cor de fundo
-            from PIL import Image
             im = Image.open(astr_outputFile)
             rgb_im = im.convert('RGB')
             rgbFirstPixel = rgb_im.getpixel((1, 1))
@@ -614,46 +616,28 @@ class med2image(object):
         '''
         self._Mnp_2Dslice = self._Mnp_2Dslice*(-1) + self._Mnp_2Dslice.max()
 
-    def generateBluePoreColormap(self,maxTotalValue,maxBlueValue=60):
-        maxBlueValue += 1
-        import matplotlib.pyplot as plt
-        from matplotlib.colors import ListedColormap
-
-        # outra abordagem para alterar os poros para azul
-        my_cmap = plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N))
-        # ---------- trecho que altera o colormap padrao cinza ---------#
-        MIN_INDEX = 0
-        MAX_INDEX = 40
-        try:
-            maxIndex = int( (maxBlueValue/maxTotalValue)*len(my_cmap) )
-            print("[generateBluePoreColormap 564] MaxIndex com limite a partir dos dados ",maxIndex)
-        except:
-            maxIndex = MAX_INDEX
-        for index, ndarray in enumerate(my_cmap):
-            # altera as primeiras linhas do colormap padrao Greys_r para usar cor azul
-            if index < maxIndex and index > MIN_INDEX:
-                my_cmap[index] = np.array((0, 0.972, 0.915, 1))
-        # ------- fim do trecho que altera o colormap padrao cinza ------#
-        my_cmap = ListedColormap(my_cmap)
-        return my_cmap
-
-    # def generateLighterColormap(self):
-    #     # Altera o colormap cinza para ficar mais claro (colormap nao linear)
+    # def generateBluePoreColormap(self,maxTotalValue,maxBlueValue=60):
+    #     maxBlueValue += 1
     #     import matplotlib.pyplot as plt
     #     from matplotlib.colors import ListedColormap
-    #     my_cmap = []
-    #     multiplier = 2
-    #     for rgba in plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N)):
-    #         newRgba = []
-    #         for component in rgba:
-    #             if component*multiplier < 1:
-    #                 newRgba.append(component*multiplier )
-    #             else:
-    #                 newRgba.append(component * 1)
-    #         my_cmap.append(newRgba)
+    #
+    #     # outra abordagem para alterar os poros para azul
+    #     my_cmap = plt.cm.Greys_r(np.arange(plt.cm.Greys_r.N))
+    #     # ---------- trecho que altera o colormap padrao cinza ---------#
+    #     MIN_INDEX = 0
+    #     MAX_INDEX = 40
+    #     try:
+    #         maxIndex = int( (maxBlueValue/maxTotalValue)*len(my_cmap) )
+    #         print("[generateBluePoreColormap 564] MaxIndex com limite a partir dos dados ",maxIndex)
+    #     except:
+    #         maxIndex = MAX_INDEX
+    #     for index, ndarray in enumerate(my_cmap):
+    #         # altera as primeiras linhas do colormap padrao Greys_r para usar cor azul
+    #         if index < maxIndex and index > MIN_INDEX:
+    #             my_cmap[index] = np.array((0, 0.972, 0.915, 1))
+    #     # ------- fim do trecho que altera o colormap padrao cinza ------#
     #     my_cmap = ListedColormap(my_cmap)
     #     return my_cmap
-
 
 class med2image_dcm(med2image):
     '''
