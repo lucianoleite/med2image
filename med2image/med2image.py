@@ -466,6 +466,8 @@ class med2image(object):
             #pylab.imsave('/home/luciano/nifti_data/MYCM-output.png', self._Mnp_2Dslice, format=fformat, cmap = mycm)
 
             # print('np.unique(self._Mnp_2Dslice)', np.unique(self._Mnp_2Dslice))
+            flagRemoveTransparency = False  # remove fundo pixel a pixel (tipos: Segmentada Poro e Projecao Tomografica;
+                                            # outros tipos: deve usar o valor 0 mapeado na cor (0,0,0,0) pelo colormap
 
             if self.segmentationType == self.SEG_PORE_LABELED:
                 # aqui, nao vai haver preocupacao com a cor correta
@@ -480,52 +482,34 @@ class med2image(object):
 
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = modifiedColormap )
             elif self.segmentationType == self.SEG_PORE:
-
-
-                # try:
-                #     # Trecho abaixo para adicionar todos os valores possiveis ([0-255]) a matriz para que o colormap
-                #     # funcione mapeando cada valor em uma cor (se a matriz 2D tiver menos valores que o colormap, algumas
-                #     # cores sao mapeadas errado)
-                #     augmented2Dslice = self._Mnp_2Dslice
-                #     shape2Dslice = self._Mnp_2Dslice.shape
-                #
-                #     # adiciona uma linha de zeros ao final da copia de _Mnp_2Dslice
-                #     zerosLine = np.zeros((1,shape2Dslice[1]))
-                #     augmented2Dslice = numpy.vstack([augmented2Dslice, zerosLine])
-                #     # zeros = np.zeros(shape2Dslice, dtype=np.uint8)
-                #     print("+=================self.maxMatrixValue", self.maxMatrixValue)
-                #     for i in range(1, self.maxMatrixValue):
-                #         # zeros[-1, -i] = i
-                #         augmented2Dslice[-1,-i] = i
-                #     # self._Mnp_2Dslice += zeros
-                #     pylab.imsave(astr_outputFile, augmented2Dslice, format=fformat, cmap = self.mycm)
-                #     # pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
-                #
-                #     # Remove a linha adicionada usando um crop de 1 pixel de largura no final da imagem
-                #     from PIL import Image
-                #     img = Image.open(astr_outputFile)
-                #     w, h = img.size
-                #     img = img.crop((0, 0, w, h - 1))
-                #     img.save(astr_outputFile, astr_outputFile.rsplit('.', 1)[1])  # sobreescreve a imagem
-                #
-                # # except Exception as ex:
-                # #     print("[slice_save @ med2image 525] Ocorreu erro com my_cmap",ex)
-                # #     pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
-
-                # Salva imagem sem poros azuis, soh escala de cinza
-                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
-
                 # =============== obtendo somente pixels azuis para gerar camada transparente dos poros =============#
                 try:
+                    ## Primeira parte: salva a imagem de fundo em escala de cinzas
+                    # pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
+
                     # Precisa do maximo para que exista uma regra do colormap para todos os numeros de 0 ate o maximo
                     sliceMaxValue = np.amax(self._Mnp_2Dslice)
 
+                    # Copia o colormap de tons de cinza, exceto para o valor 0, que sera mapeado em transparencia
+                    newcmap = LinearSegmentedColormap.from_list('newcmap',
+                                                                [(0, 0, 0, 0)] + list(map(cm.Greys_r, range(1,cm.Greys_r.N))),
+                                                                N=cm.Greys_r.N)
+
+                    # Salva imagem sem poros azuis, soh escala de cinza
+                    pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=newcmap)
+
+                    ## Segunda parte: salva apenas os poros azuis e sobrepoe a imagem
+                    # Obtem lista de possiveis valores da matriz/slice atual para eliminar possiveis "pulos" do colormap
+                    unique = np.unique(self._Mnp_2Dslice)
+
                     # Criando regra basica do colormap - transparente para todos os possiveis valores da matriz do slice
                     linearColormap = [(0, 0, 0, 0) for _ in range(self.minAllowedValue + 1,sliceMaxValue )]
+                    # linearColormap = [(0, 0, 0, 0) for _ in unique]
 
                     # Para os valores entre 0 e o limite do poro azul, altera a regra do colormap para usar a cor azul
                     for i in range(self.minAllowedValue + 1,sliceMaxValue ):
-                        if i < self.minAllowedValue + self.blueLimit:
+                    # for i in unique:
+                        if i != 0 and i < self.minAllowedValue + self.blueLimit :
                             linearColormap[i] = (0, 0.972, 0.915, 1) # cor azul claro
 
                     # Cria colormap de regras 1 cor : 1 valor
@@ -544,38 +528,46 @@ class med2image(object):
                     # Apaga arquivo temporario de poros azuis
                     os.remove(bluePoreTmpImgPath)
                 except Exception as ex:
-                    print("[slice_save @ med2image 525] Ocorreu erro com my_cmap", ex)
+                    print("[slice_save @ med2image 527] Ocorreu erro na sobreposicao de poros azuis", ex)
+                    print("[slice_save @ med2image] Utilizando imagem em escala de cinzas somente")
+                    flagRemoveTransparency = True
                     pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
                 # =========================== fim do trecho para colorir com pixels azuis  ===========================#
 
             else:
+                flagRemoveTransparency = True
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
 
             #===================trecho para remover transparencia e inverter eixo z ==================#
-            # obtendo cor de fundo
-            im = Image.open(astr_outputFile)
-            rgb_im = im.convert('RGB')
-            rgbFirstPixel = rgb_im.getpixel((1, 1))
+            try:
+                # obtendo todos os rgb dos pixels
+                img = Image.open(astr_outputFile)
+                img = img.convert("RGBA")
 
-            # obtendo todos os rgb dos pixels
-            img = Image.open(astr_outputFile)
-            img = img.convert("RGBA")
+                # Se houve algum erro na geracao dos poros azuis, eh gerada apenas a imagem em escala de cinza com fundo preto
+                # O fundo sera removido manualmente
+                if flagRemoveTransparency:
+                    # obtendo cor de fundo
+                    rgb_im = img.convert('RGB')
+                    rgbFirstPixel = rgb_im.getpixel((1, 1))
 
-            # datas = img.getdata()
-            # newData = []
-            # for r,g,b,a in datas:
-            #     if r == rgbFirstPixel[0] and g == rgbFirstPixel[1] and b == rgbFirstPixel[2]: # deixa o fundo transparente
-            #         newData.append((255, 255, 255, 0))
-            #     else: # usa a mesma cor
-            #             newData.append((r, g, b, a))
-            # img.putdata(newData)
+                    datas = img.getdata()
+                    newData = []
+                    for r,g,b,a in datas:
+                        if r == rgbFirstPixel[0] and g == rgbFirstPixel[1] and b == rgbFirstPixel[2]: # deixa o fundo transparente
+                            newData.append((255, 255, 255, 0))
+                        else: # usa a mesma cor
+                                newData.append((r, g, b, a))
+                    img.putdata(newData)
 
-            # soh precisa do flip no eixo z
-            axis = os.path.basename(os.path.dirname(astr_outputFile))
-            if axis == 'z':
-                img = img.transpose(Image.FLIP_TOP_BOTTOM) # flip vertical
+                # soh precisa do flip no eixo z
+                axis = os.path.basename(os.path.dirname(astr_outputFile))
+                if axis == 'z':
+                    img = img.transpose(Image.FLIP_TOP_BOTTOM) # flip vertical
 
-            img.save(astr_outputFile, astr_outputFile.rsplit('.',1)[1]) #sobreescreve a imagem
+                img.save(astr_outputFile, astr_outputFile.rsplit('.',1)[1]) #sobreescreve a imagem
+            except Exception as ex:
+                print("[med2image] Ocorreu um erro nao esperado na etapa de flip do eixo z/remocao da transparencia", ex)
             # ===========================fim trecho para remover transparencia==========================#
 
 
