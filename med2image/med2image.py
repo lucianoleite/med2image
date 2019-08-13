@@ -330,6 +330,9 @@ class med2image(object):
         # if not self.minMatrixValue and self.segmentationType in self.SEGMENTED:
         #     self.minMatrixValue = np.amin(self._Vnp_3DVol)
 
+        # print("--------------self.minMatrixValue",self.minMatrixValue)
+        # print("--------------self.maxMatrixValue",self.maxMatrixValue)
+
         if self.segmentationType in self.COLORED_TYPES:
             global_color_dict = createColorDict(self.colorTxt)
 
@@ -469,6 +472,31 @@ class med2image(object):
             flagRemoveTransparency = False  # remove fundo pixel a pixel (tipos: Segmentada Poro e Projecao Tomografica;
                                             # outros tipos: deve usar o valor 0 mapeado na cor (0,0,0,0) pelo colormap
 
+
+            # unique = np.unique(self._Mnp_2Dslice)
+            # print(">>>>>>>>>>>>>>unique",unique)
+
+            ## Correcao do colormap de tons de cinza que para matrizes que nao tenha o valor maximo 255
+            # Copia o colormap de tons de cinza, exceto para o valor 0, que sera mapeado em transparencia
+            if self.segmentationType in self.NON_COLORED_TYPES:
+                try:
+                    # sliceUniqueValues = np.unique(self._Mnp_2Dslice)
+                    # greyValuesForSlice = [(0, 0, 0, 0)] + list(map(cm.Greys_r, sliceUniqueValues))
+                    sliceMaxValue = np.amax(self._Mnp_2Dslice)
+                    if sliceMaxValue == 0:
+                        greyValuesForSlice = [(0, 0, 0, 0)] + [(1,1,1,1)]
+                    else:
+                        greyValuesForSlice = [(0, 0, 0, 0)] + list(map(cm.Greys_r, range(1,sliceMaxValue)))
+                    # print("----------[med2image] sliceMaxValue",sliceMaxValue)
+                    # print("----------[med2image] greyValuesForSlice",greyValuesForSlice)
+
+                    ModifiedGreys_r = LinearSegmentedColormap.from_list('newcmap', greyValuesForSlice, N=len(greyValuesForSlice))
+                except Exception as ex:
+                    print("[med2image] Ocorreu um erro nao esperado na geracao colormap cinza", ex)
+                    ModifiedGreys_r = cm.Greys_r
+            else:
+                ModifiedGreys_r = cm.Greys_r
+
             if self.segmentationType == self.SEG_PORE_LABELED:
                 # aqui, nao vai haver preocupacao com a cor correta
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
@@ -488,19 +516,21 @@ class med2image(object):
                     # pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)
 
                     # Precisa do maximo para que exista uma regra do colormap para todos os numeros de 0 ate o maximo
-                    sliceMaxValue = np.amax(self._Mnp_2Dslice)
+                    # sliceMaxValue = np.amax(self._Mnp_2Dslice)
 
                     # Copia o colormap de tons de cinza, exceto para o valor 0, que sera mapeado em transparencia
-                    newcmap = LinearSegmentedColormap.from_list('newcmap',
-                                                                [(0, 0, 0, 0)] + list(map(cm.Greys_r, range(1,cm.Greys_r.N))),
-                                                                N=cm.Greys_r.N)
+                    # newcmap = LinearSegmentedColormap.from_list('newcmap',
+                    #                                             [(0, 0, 0, 0)] + list(map(cm.Greys_r, range(1,cm.Greys_r.N))),
+                    #                                             N=cm.Greys_r.N)
+                    newcmap = ModifiedGreys_r
 
                     # Salva imagem sem poros azuis, soh escala de cinza
                     pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=newcmap)
 
                     ## Segunda parte: salva apenas os poros azuis e sobrepoe a imagem
                     # Obtem lista de possiveis valores da matriz/slice atual para eliminar possiveis "pulos" do colormap
-                    unique = np.unique(self._Mnp_2Dslice)
+                    # unique = np.unique(self._Mnp_2Dslice)
+                    # print(">>>>>>>>>>>>>>unique",unique)
 
                     # Criando regra basica do colormap - transparente para todos os possiveis valores da matriz do slice
                     linearColormap = [(0, 0, 0, 0) for _ in range(self.minAllowedValue + 1,sliceMaxValue )]
@@ -514,10 +544,22 @@ class med2image(object):
 
                     # Cria colormap de regras 1 cor : 1 valor
                     CustomCmap = ListedColormap(linearColormap)
+                    # print(">>>>>>>>>>>>>>CustomCmap(0)",CustomCmap(0))
+                    # print(">>>>>>>>>>>>>>CustomCmap(1)",CustomCmap(1))
+                    # print(">>>>>>>>>>>>>>CustomCmap(10)",CustomCmap(10))
+                    # print(">>>>>>>>>>>>>>CustomCmap(20)",CustomCmap(20))
+                    # print(">>>>>>>>>>>>>>CustomCmap(30)",CustomCmap(30))
+                    # print(">>>>>>>>>>>>>>CustomCmap(40)",CustomCmap(40))
+                    # print(">>>>>>>>>>>>>>CustomCmap(255)",CustomCmap(255))
 
                     # Salva arquivo temporario que sera a camada superficial com poros azuis e fundo transparente
                     bluePoreTmpImgPath = astr_outputFile.replace('output','blue_pores')
                     pylab.imsave(bluePoreTmpImgPath, self._Mnp_2Dslice, format=fformat, cmap=CustomCmap)
+
+                    # ones = self._Mnp_2Dslice.copy()
+                    # ones[:,350] = 24
+                    #
+                    # pylab.imsave(bluePoreTmpImgPath, ones, format=fformat, cmap=CustomCmap)
 
                     background = Image.open(astr_outputFile)    # arquivo original em escala de cinza
                     foreground = Image.open(bluePoreTmpImgPath) # arquivo com poros azuis
@@ -536,7 +578,10 @@ class med2image(object):
 
             else:
                 flagRemoveTransparency = True
-                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
+                try:
+                    pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = ModifiedGreys_r) # original
+                except:
+                    pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=cm.Greys_r)  # original
 
             #===================trecho para remover transparencia e inverter eixo z ==================#
             try:
