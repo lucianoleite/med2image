@@ -335,8 +335,9 @@ class med2image(object):
 
         if self.segmentationType in self.COLORED_TYPES:
             global_color_dict = createColorDict(self.colorTxt)
+            # print("---------------------global_color_dict",global_color_dict)
 
-            self.mycolors = global_color_dict.values()
+            self.mycolors = list(global_color_dict.values())
             # self.mycolors = getFileColor()
 
             for i in range(0, dims[dim_ix['z']]):
@@ -365,9 +366,9 @@ class med2image(object):
             num_colors =  len(global_colors)
             num_phases = len(self.d.items())
 
-            self.mycolors = transparency + list( global_colors * math.ceil( float(num_phases)/num_colors))[:num_phases]
+            # self.mycolors = transparency + list( global_colors * math.ceil( float(num_phases)/num_colors))[:num_phases] # DEPRECATED?
 
-            self.mycm = LinearSegmentedColormap.from_list('custom_color_map', self.mycolors ,N=len(self.mycolors))
+            # self.mycm = LinearSegmentedColormap.from_list('custom_color_map', self.mycolors ,N=len(self.mycolors)) # DEPRECATED?
 
             '''
             print ("The original colormap has len =  ", num_colors)
@@ -498,8 +499,41 @@ class med2image(object):
                 ModifiedGreys_r = cm.Greys_r
 
             if self.segmentationType == self.SEG_PORE_LABELED:
-                # aqui, nao vai haver preocupacao com a cor correta
-                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
+                # pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = self.mycm)
+                unique = np.unique(self._Mnp_2Dslice)
+
+                # debug = False
+                # if "x/" in astr_outputFile:
+                #     debug = True
+
+                # Para funcionar corretamente, devemos eliminar do colormap as cores que nao serao usadas na matriz atual
+                sliceColors = []
+                transparency = self.mycolors[0]
+                nonTransparentColors = self.mycolors[1:]
+                nonTransparentColorsLen = len(nonTransparentColors)
+
+                lastMin = 1
+                for index,value in enumerate(unique):
+                    # As cores se repetem a cada index = N * len(self.mycolors)
+                    # if debug:
+                    #     print("---------------------[med2image 551] value",value)
+                    if value == 0:
+                        sliceColors.append(transparency)
+                    else:
+                        nonTransparentColorsIndex = (value - 1) %  nonTransparentColorsLen
+                        # if debug:
+                        #     print("-------------[med2image 552] nonTransparentColors[nonTransparentColorsIndex]",nonTransparentColors[nonTransparentColorsIndex])
+                        for innerIndex in range(lastMin,value+1):
+                            # Adiciona cores aos valores intermediarios, mesmo que nao sejam usadas (provavelmente tem uma solucao melhor)
+                            # Se nao fizer esse trecho, mapeia 0 - transp; 1 - cor 1; 2 - cor 2; etc
+                            sliceColors.append(nonTransparentColors[nonTransparentColorsIndex])
+                        lastMin = value + 1
+
+                # mapeamento 1 cor : 1 intervalo de valor, ja adicionados os valores e cores que nao serao usados
+                modifiedColormap = ListedColormap(sliceColors)
+
+                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap=modifiedColormap)
+
             elif self.segmentationType in self.COLORED_TYPES:
                 unique = np.unique(self._Mnp_2Dslice)
                 # Para funcionar corretamente, devemos eliminar do colormap as cores que nao serao usadas na matriz atual
@@ -508,7 +542,7 @@ class med2image(object):
                 # mapeamento 1 cor : 1 valor, ja eliminados os valores e cores que nao serao usados
                 modifiedColormap = ListedColormap(sliceColors)
 
-                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = modifiedColormap )
+                pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = modifiedColormap)
             elif self.segmentationType == self.SEG_PORE:
                 # =============== obtendo somente pixels azuis para gerar camada transparente dos poros =============#
                 try:
