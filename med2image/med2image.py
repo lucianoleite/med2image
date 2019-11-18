@@ -535,7 +535,7 @@ class med2image(object):
                 # =========================== fim do trecho para colorir com pixels azuis  ===========================#
 
             else:
-                flagRemoveTransparency = True
+                flagRemoveTransparency = False
                 pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r) # original
 
             #===================trecho para remover transparencia e inverter eixo z ==================#

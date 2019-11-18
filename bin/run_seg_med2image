@@ -73,4 +73,4 @@ fi
 . ~/med2image_venv/bin/activate
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-$DIR/med2image -i $input_file -d $out_dir -t png -r --type $proj_type $colormap_call $bluelimit_call #-s 500 # -s m/<int sliceNumber> soh pra testes (converte soh o slice do meio)
+$DIR/med2image -i $input_file -d $out_dir -t png -r --type $proj_type $colormap_call $bluelimit_call -s 110 # -s m/<int sliceNumber> soh pra testes (converte soh o slice do meio)
