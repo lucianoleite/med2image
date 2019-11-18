@@ -477,7 +477,7 @@ class med2image(object):
             # unique = np.unique(self._Mnp_2Dslice)
             # print(">>>>>>>>>>>>>>unique",unique)
 
-            ## Correcao do colormap de tons de cinza que para matrizes que nao tenha o valor maximo 255
+            ## Correcao do colormap de tons de cinza para matrizes que nao tenham o valor maximo 255
             # Copia o colormap de tons de cinza, exceto para o valor 0, que sera mapeado em transparencia
             if self.segmentationType in self.NON_COLORED_TYPES:
                 try:
@@ -490,8 +490,10 @@ class med2image(object):
                         greyValuesForSlice = [(0, 0, 0, 0)] + list(map(cm.Greys_r, range(1,sliceMaxValue)))
                     # print("----------[med2image] sliceMaxValue",sliceMaxValue)
                     # print("----------[med2image] greyValuesForSlice",greyValuesForSlice)
-
-                    ModifiedGreys_r = LinearSegmentedColormap.from_list('newcmap', greyValuesForSlice, N=len(greyValuesForSlice))
+                    numShades = len(greyValuesForSlice)
+                    if numShades > 255:
+                        raise Exception("Numero de tons de cinza excedido")
+                    ModifiedGreys_r = LinearSegmentedColormap.from_list('newcmap', greyValuesForSlice, N=numShades)
                 except Exception as ex:
                     print("[med2image] Ocorreu um erro nao esperado na geracao colormap cinza", ex)
                     ModifiedGreys_r = cm.Greys_r
