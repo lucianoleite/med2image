@@ -92,7 +92,7 @@ class med2image(object):
     COLORED_TYPES = [SEG_PHASES, SEG_PORE_LABELED, SEG_MINERALS]
     SEGMENTED =  COLORED_TYPES + [SEG_PORE]
     NON_COLORED_TYPES = [NON_SEGMENTED, SEG_PORE]
-        
+
     def log(self, *args):
         '''
         get/set the internal pipeline log message object.
@@ -129,10 +129,10 @@ class med2image(object):
     def urlify(astr, astr_join = '_'):
         # Remove all non-word characters (everything except numbers and letters)
         astr = re.sub(r"[^\w\s]", '', astr)
-        
+
         # Replace all runs of whitespace with an underscore
         astr = re.sub(r"\s+", astr_join, astr)
-        
+
         return astr
 
     def __init__(self, **kwargs):
@@ -188,9 +188,10 @@ class med2image(object):
         self.func                       = None #transformation function
 
         #Custom attributes for colored segmentations
-        self.segmentationType           = None # to check if is colored 
+        self.segmentationType           = None # to check if is colored
         self.colorTxt                   = None # to customize colormap
         self.blueLimit                  = 60   # to customize grayscale with blue spots
+        self.minBlueLimit               = 0    # to customize grayscale with blue spots (HARDCODED!)
         # self.maxMatrixValue             = None # can represent the number of phases (SEG_MINERALS/SEG_PHASES) or simply
         #                                        # the greatest value on the matrix (NON_SEGMENTED,SEG_PORE_LABELED)
         # self.minMatrixValue             = None # usada para poros azuis
@@ -278,10 +279,10 @@ class med2image(object):
         frame   = 0
         str_subDir  = ""
         for key,val in kwargs.items():
-            if key == 'index':  index       = val 
+            if key == 'index':  index       = val
             if key == 'frame':  frame       = val
             if key == 'subDir': str_subDir  = val
-        
+
         if self._b_4D:
             str_outputFile = '%s/%s/%s-frame%03d-slice%03d.%s' % (
                                                     self._str_outputDir,
@@ -309,12 +310,12 @@ class med2image(object):
         for key, val in kwargs.items():
             if key == 'dimension':  str_dim         = val
             if key == 'makeSubDir': b_makeSubDir    = val
-            if key == 'indexStart': indexStart      = val 
+            if key == 'indexStart': indexStart      = val
             if key == 'indexStop':  indexStop       = val
             if key == 'rot90':      b_rot90         = val
-        
+
         str_subDir  = ''
-        if b_makeSubDir: 
+        if b_makeSubDir:
             str_subDir = str_dim
             misc.mkdir('%s/%s' % (self._str_outputDir, str_subDir))
 
@@ -345,7 +346,7 @@ class med2image(object):
                 self._Mnp_2Dslice = self._Vnp_3DVol[:, :, i]
 
                 slice_keys = numpy.unique(self._Mnp_2Dslice)
-                
+
                 for key in slice_keys:
                     if not key in self.d:
                         self.d[key] = []
@@ -354,9 +355,9 @@ class med2image(object):
             color_dict = {}
             for k,v in self.d.items():
                 if k > 6 :
-                    break 
+                    break
                 #print ("pore: ", k,  "len slices: ", len(v), " slices: ", v)
-        
+
             global_colors = list(global_color_dict.values())
 
             if global_color_dict[0] == (0,0, 0, 0):
@@ -400,7 +401,7 @@ class med2image(object):
             str_outputFile = self.get_output_file_name(index=i, subDir=str_subDir)
 
             self.slice_save(str_outputFile)
-        
+
         # counting number of files in current dim path and storing in total.txt
         try:
             fullPathDim = os.path.dirname(str_outputFile)
@@ -464,8 +465,8 @@ class med2image(object):
             # print("self.d len ", len(self.d))
             # slice_color_dict = global_color_dict.copy()
             # mycolors = list(slice_color_dict.values())*50
-            #print ("len slice_keys =", len(slice_keys))          
-            
+            #print ("len slice_keys =", len(slice_keys))
+
             #pylab.imsave(astr_outputFile, self._Mnp_2Dslice, format=fformat, cmap = cm.Greys_r)
             #pylab.imsave('/home/luciano/nifti_data/MYCM-output.png', self._Mnp_2Dslice, format=fformat, cmap = mycm)
 
@@ -573,7 +574,9 @@ class med2image(object):
                     # Para os valores entre 0 e o limite do poro azul, altera a regra do colormap para usar a cor azul
                     for i in range(self.minAllowedValue + 1,sliceMaxValue ):
                     # for i in unique:
-                        if i != 0 and i < self.minAllowedValue + self.blueLimit :
+                        # if i != 0 and i < self.minAllowedValue + self.blueLimit :
+                        if i != 0 and i > self.minBlueLimit and i < self.blueLimit :
+
                             linearColormap[i] = (0, 0.972, 0.915, 1) # cor azul claro
 
                     # Cria colormap de regras 1 cor : 1 valor
@@ -724,7 +727,7 @@ class med2image_dcm(med2image):
             for key in str_spec.split('%')[1:]:
                 str_fileComponent = ''
                 if key == 'inputFile':
-                    str_fileName, str_ext = os.path.splitext(self._str_inputFile) 
+                    str_fileName, str_ext = os.path.splitext(self._str_inputFile)
                     str_fileComponent = str_fileName
                 else:
                     str_fileComponent = eval('self._dcm.%s' % key)
@@ -807,7 +810,7 @@ class med2image_dcm(med2image):
             else:
                 self.dim_save(dimension = 'z', makeSubDir = False, rot90 = False, indexStart = 0, indexStop = -1)
 
-                
+
 class med2image_nii(med2image):
     '''
     Sub class that handles NIfTI data.
@@ -875,6 +878,3 @@ class med2image_nii(med2image):
                     self.dim_save(dimension = dim, makeSubDir = True, indexStart = sliceStart, indexStop = sliceEnd, rot90 = True)
             else:
                 self.dim_save(dimension = 'z', makeSubDir = False, indexStart = sliceStart, indexStop = sliceEnd, rot90 = True)
-
-
-
