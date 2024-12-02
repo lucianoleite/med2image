@@ -70,7 +70,10 @@ then bluelimit_call=""
 else bluelimit_call="--blueLimit $blueLimit"
 fi
 
-. ~/med2image_venv/bin/activate
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+VENV_BASE_FOLDER=/usr/src/app/med2image
 
-$DIR/med2image -i $input_file -d $out_dir -t png -r --type $proj_type $colormap_call $bluelimit_call #-s 377 # -s m/<int sliceNumber> soh pra testes (converte soh o slice do meio)
+. $VENV_BASE_FOLDER/med2image_venv/bin/activate
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo "------------$DIR"
+# $DIR/med2image -i $input_file -d $out_dir -t png -r --type $proj_type $colormap_call $bluelimit_call #-s 377 # -s m/<int sliceNumber> soh pra testes (converte soh o slice do meio)
+python $DIR/med2image -i $input_file -d $out_dir -t png -r --type $proj_type $colormap_call $bluelimit_call #-s 377 # -s m/<int sliceNumber> soh pra testes (converte soh o slice do meio)
