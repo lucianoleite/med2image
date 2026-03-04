@@ -488,7 +488,8 @@ class med2image(object):
                     if sliceMaxValue == 0:
                         greyValuesForSlice = [(0, 0, 0, 0)] + [(1,1,1,1)]
                     else:
-                        greyValuesForSlice = [(0, 0, 0, 0)] + list(map(cm.Greys_r, range(1,sliceMaxValue)))
+                        # greyValuesForSlice = [(0, 0, 0, 0)] + list(map(cm.Greys_r, range(1,sliceMaxValue)))
+                        greyValuesForSlice = [(0, 0, 0, 0)] + [cm.Greys_r(i/sliceMaxValue) for i in range(1, int(sliceMaxValue))]
                     # print("----------[med2image] sliceMaxValue",sliceMaxValue)
                     # print("----------[med2image] greyValuesForSlice",greyValuesForSlice)
 
@@ -568,11 +569,11 @@ class med2image(object):
                     # print(">>>>>>>>>>>>>>unique",unique)
 
                     # Criando regra basica do colormap - transparente para todos os possiveis valores da matriz do slice
-                    linearColormap = [(0, 0, 0, 0) for _ in range(self.minAllowedValue + 1,sliceMaxValue )]
+                    linearColormap = [(0, 0, 0, 0) for _ in range(int(self.minAllowedValue) + 1, int(sliceMaxValue))]
                     # linearColormap = [(0, 0, 0, 0) for _ in unique]
 
                     # Para os valores entre 0 e o limite do poro azul, altera a regra do colormap para usar a cor azul
-                    for i in range(self.minAllowedValue + 1,sliceMaxValue ):
+                    for i in range(int(self.minAllowedValue) + 1, int(sliceMaxValue)):
                     # for i in unique:
                         # if i != 0 and i < self.minAllowedValue + self.blueLimit :
                         if i != 0 and i > self.minBlueLimit and i < self.blueLimit :
@@ -819,7 +820,7 @@ class med2image_nii(med2image):
     def __init__(self, **kwargs):
         med2image.__init__(self, **kwargs)
         nimg = nib.load(self._str_inputFile)
-        data = nimg.get_data()
+        data = nimg.get_fdata()
         if data.ndim == 4:
             self._Vnp_4DVol     = data
             self._b_4D          = True
